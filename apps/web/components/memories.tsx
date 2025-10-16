@@ -1,3 +1,4 @@
+// apps/web/components/memories.tsx
 "use client"
 
 import { useAuth } from "@lib/auth-context"
@@ -6,12 +7,10 @@ import type { DocumentsWithMemoriesResponseSchema } from "@repo/validation/api"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { z } from "zod"
-import { MemoryGraph } from "@repo/ui/memory-graph"
-import { Dialog, DialogContent } from "@repo/ui/components/dialog"
 import { ConnectAIModal } from "@/components/connect-ai-modal"
 import { MasonryMemoryList } from "@/components/masonry-memory-list"
 import { AddMemoryView } from "@/components/views/add-memory"
-import { useChatOpen, useProject, useGraphModal } from "@/stores"
+import { useChatOpen, useProject } from "@/stores"
 import { useGraphHighlights } from "@/stores/highlights"
 import { useIsMobile } from "@hooks/use-mobile"
 
@@ -23,8 +22,6 @@ export function Memories() {
 	const { documentIds: allHighlightDocumentIds } = useGraphHighlights()
 	const { selectedProject } = useProject()
 	const { isOpen } = useChatOpen()
-	const { isOpen: showGraphModal, setIsOpen: setShowGraphModal } =
-		useGraphModal()
 	const [injectedDocs, setInjectedDocs] = useState<DocumentWithMemories[]>([])
 	const [showAddMemoryView, setShowAddMemoryView] = useState(false)
 	const [showConnectAIModal, setShowConnectAIModal] = useState(false)
@@ -243,74 +240,6 @@ export function Memories() {
 					/>
 				)}
 			</div>
-
-			{/* Memory Graph Modal */}
-			<Dialog open={showGraphModal} onOpenChange={setShowGraphModal}>
-				<DialogContent
-					className="w-[95vw] h-[95vh] p-0  max-w-6xl sm:max-w-6xl"
-					showCloseButton={true}
-				>
-					<div className="w-full h-full">
-						<MemoryGraph
-							documents={allDocuments}
-							error={error}
-							hasMore={hasMore}
-							isLoading={isPending}
-							isLoadingMore={isLoadingMore}
-							loadMoreDocuments={loadMoreDocuments}
-							totalLoaded={totalLoaded}
-							variant="console"
-							showSpacesSelector={true}
-							highlightDocumentIds={allHighlightDocumentIds}
-							highlightsVisible={isOpen}
-						>
-							<div className="absolute inset-0 flex items-center justify-center">
-								{!isMobile ? (
-									<ConnectAIModal
-										onOpenChange={setShowConnectAIModal}
-										open={showConnectAIModal}
-									>
-										<div className="rounded-xl overflow-hidden cursor-pointer hover:bg-white/5 transition-colors p-6">
-											<div className="relative z-10 text-slate-200 text-center">
-												<div className="flex flex-col gap-3">
-													<button
-														className="text-sm text-blue-400 hover:text-blue-300 transition-colors underline"
-														onClick={(e) => {
-															e.stopPropagation()
-															setShowAddMemoryView(true)
-															setShowConnectAIModal(false)
-														}}
-														type="button"
-													>
-														Add your first memory
-													</button>
-												</div>
-											</div>
-										</div>
-									</ConnectAIModal>
-								) : (
-									<div className="rounded-xl overflow-hidden cursor-pointer hover:bg-white/5 transition-colors p-6">
-										<div className="relative z-10 text-slate-200 text-center">
-											<div className="flex flex-col gap-3">
-												<button
-													className="text-sm text-blue-400 hover:text-blue-300 transition-colors underline"
-													onClick={(e) => {
-														e.stopPropagation()
-														setShowAddMemoryView(true)
-													}}
-													type="button"
-												>
-													Add your first memory
-												</button>
-											</div>
-										</div>
-									</div>
-								)}
-							</div>
-						</MemoryGraph>
-					</div>
-				</DialogContent>
-			</Dialog>
 		</>
 	)
 }
