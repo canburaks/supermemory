@@ -216,7 +216,11 @@
 							},
 							{
 								"group": "Reference",
-								"pages": ["memorybench/cli", "memorybench/integrations"]
+								"pages": [
+									"memorybench/memscore",
+									"memorybench/cli",
+									"memorybench/integrations"
+								]
 							}
 						]
 					}

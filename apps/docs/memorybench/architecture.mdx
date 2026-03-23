@@ -65,7 +65,7 @@ flowchart LR
 | **Search** | Query provider → Retrieve context |
 | **Answer** | Build prompt → Generate answer via LLM |
 | **Evaluate** | Compare to ground truth → Score via judge |
-| **Report** | Aggregate scores → Output accuracy + latency |
+| **Report** | Aggregate scores → Output accuracy, latency, token metrics, and [MemScore](/memorybench/memscore) |
 
 Each phase checkpoints independently. Failed runs resume from last successful point.
 
