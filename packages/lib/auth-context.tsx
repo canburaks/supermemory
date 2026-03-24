@@ -12,13 +12,21 @@ import { authClient, useSession } from "./auth"
 
 type Organization = typeof authClient.$Infer.ActiveOrganization
 type SessionData = NonNullable<ReturnType<typeof useSession>["data"]>
+type OrganizationListItem = NonNullable<
+	ReturnType<typeof authClient.useListOrganizations>["data"]
+>[number]
+
+const STORAGE_KEY = "supermemory-consumer-last-org-slug"
 
 interface AuthContextType {
 	session: SessionData["session"] | null
 	user: SessionData["user"] | null
 	org: Organization | null
+	organizations: OrganizationListItem[] | null
+	isRestoring: boolean
 	setActiveOrg: (orgSlug: string) => Promise<void>
 	updateOrgMetadata: (partial: Record<string, unknown>) => void
+	refetchOrganizations: () => Promise<unknown>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -26,17 +34,30 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const { data: session } = useSession()
 	const [org, setOrg] = useState<Organization | null>(null)
-	const { data: orgs } = authClient.useListOrganizations()
+	const [isRestoring, setIsRestoring] = useState(true)
+	const {
+		data: orgsData,
+		refetch: refetchOrgsQuery,
+		isPending: orgsPending,
+	} = authClient.useListOrganizations()
 
-	const setActiveOrg = async (slug: string) => {
+	const organizations: OrganizationListItem[] | null =
+		session?.session == null ? null : orgsPending ? null : (orgsData ?? [])
+
+	const refetchOrganizations = useCallback(
+		() => Promise.resolve(refetchOrgsQuery()),
+		[refetchOrgsQuery],
+	)
+
+	const setActiveOrg = useCallback(async (slug: string) => {
 		if (!slug) return
 
 		const activeOrg = await authClient.organization.setActive({
 			organizationSlug: slug,
 		})
 		setOrg(activeOrg)
-		localStorage.setItem("supermemory-consumer-last-org-slug", slug)
-	}
+		localStorage.setItem(STORAGE_KEY, slug)
+	}, [])
 
 	const updateOrgMetadata = useCallback((partial: Record<string, unknown>) => {
 		setOrg((prev) => {
@@ -51,23 +72,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		})
 	}, [])
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: ignoring the setActiveOrg dependency
 	useEffect(() => {
-		if (!session?.session.activeOrganizationId || !orgs) return
-
-		const savedSlug = localStorage.getItem("supermemory-consumer-last-org-slug")
-
-		if (savedSlug && orgs.find((o) => o.slug === savedSlug)) {
-			setActiveOrg(savedSlug)
+		if (!session?.session) {
+			setIsRestoring(false)
+			setOrg(null)
 			return
 		}
 
-		if (savedSlug) localStorage.removeItem("supermemory-consumer-last-org-slug")
-		authClient.organization.getFullOrganization().then(setOrg)
-	}, [session?.session.activeOrganizationId, orgs])
+		if (orgsPending || orgsData === undefined) {
+			setIsRestoring(true)
+			return
+		}
 
-	// When a session exists and there is a pending login method recorded,
-	// promote it to the last-used method (successful login) and clear pending.
+		const orgs = orgsData ?? []
+		let cancelled = false
+
+		const run = async () => {
+			try {
+				if (orgs.length === 0) {
+					if (!cancelled) setOrg(null)
+					return
+				}
+
+				const activeOrgId = session.session.activeOrganizationId
+
+				if (orgs.length === 1) {
+					const one = orgs[0]
+					if (!one) return
+					if (activeOrgId === one.id) {
+						const full = await authClient.organization.getFullOrganization()
+						if (!cancelled) setOrg(full)
+					} else {
+						await setActiveOrg(one.slug)
+					}
+					return
+				}
+
+				const savedSlug = localStorage.getItem(STORAGE_KEY)
+				if (savedSlug) {
+					const match = orgs.find((o) => o.slug === savedSlug)
+					if (match) {
+						if (activeOrgId === match.id) {
+							const full = await authClient.organization.getFullOrganization()
+							if (!cancelled) setOrg(full)
+						} else {
+							await setActiveOrg(savedSlug)
+						}
+						return
+					}
+					localStorage.removeItem(STORAGE_KEY)
+				}
+
+				if (activeOrgId) {
+					const fromList = orgs.find((o) => o.id === activeOrgId)
+					if (fromList) {
+						const full = await authClient.organization.getFullOrganization()
+						if (!cancelled) setOrg(full)
+						return
+					}
+				}
+
+				const full = await authClient.organization.getFullOrganization()
+				if (!cancelled) setOrg(full)
+			} catch (error) {
+				console.error("Failed to restore organization:", error)
+			} finally {
+				if (!cancelled) setIsRestoring(false)
+			}
+		}
+
+		void run()
+		return () => {
+			cancelled = true
+		}
+	}, [session, orgsData, orgsPending, setActiveOrg])
+
 	useEffect(() => {
 		if (typeof window === "undefined") return
 		if (!session?.session) return
@@ -83,14 +162,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			if (pendingMethod) {
 				const now = Date.now()
 				const ts = pendingTsRaw ? Number.parseInt(pendingTsRaw, 10) : Number.NaN
-				const isFresh = Number.isFinite(ts) && now - ts < 10 * 60 * 1000 // 10 minutes TTL
+				const isFresh = Number.isFinite(ts) && now - ts < 10 * 60 * 1000
 
 				if (isFresh) {
 					localStorage.setItem("supermemory-last-login-method", pendingMethod)
 				}
 			}
 		} catch {}
-		// Always clear pending markers once a session is present
 		try {
 			localStorage.removeItem("supermemory-pending-login-method")
 			localStorage.removeItem("supermemory-pending-login-timestamp")
@@ -101,10 +179,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		<AuthContext.Provider
 			value={{
 				org,
+				organizations,
+				isRestoring,
 				session: session?.session ?? null,
 				user: session?.user ?? null,
 				setActiveOrg,
 				updateOrgMetadata,
+				refetchOrganizations,
 			}}
 		>
 			{children}

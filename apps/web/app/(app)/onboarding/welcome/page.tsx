@@ -19,7 +19,30 @@ import {
 } from "./layout"
 import { gapVariants, orbVariants } from "@/lib/variants"
 import { authClient } from "@lib/auth"
+import { useAuth } from "@lib/auth-context"
 import { analytics } from "@/lib/analytics"
+import { toast } from "sonner"
+
+function generateSlugFromName(value: string) {
+	return (
+		value
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/(^-|-$)/g, "") || "org"
+	)
+}
+
+function generateOrgSlug(name: string) {
+	const base = generateSlugFromName(name.trim())
+	const randomNum = Math.floor(100000 + Math.random() * 900000)
+	return `${base}-${randomNum}`
+}
+
+function generateUsername(name: string) {
+	const base = generateSlugFromName(name.trim())
+	const randomNum = Math.floor(100000 + Math.random() * 900000)
+	return `${base}${randomNum}`
+}
 
 function UserSupermemory({ name }: { name: string }) {
 	return (
@@ -78,20 +101,67 @@ export default function WelcomePage() {
 		goToStep,
 	} = useWelcomeContext()
 
+	const { refetchOrganizations, setActiveOrg } = useAuth()
+
 	const handleSubmit = async () => {
 		localStorage.setItem("username", name)
 		if (name.trim()) {
 			setIsSubmitting(true)
 
 			try {
-				await authClient.updateUser({ displayUsername: name.trim() })
-			} catch (error) {
-				console.error("Failed to update displayUsername:", error)
-			}
+				await authClient.updateUser({
+					displayUsername: name.trim(),
+					username: generateUsername(name.trim()),
+				})
 
-			analytics.onboardingNameSubmitted({ name_length: name.trim().length })
-			goToStep("greeting")
-			setIsSubmitting(false)
+				const refetchResult = await refetchOrganizations()
+				const refetchData = (
+					refetchResult as { data?: unknown[] | null | undefined }
+				)?.data
+				const existingOrgs = Array.isArray(refetchData) ? refetchData : []
+
+				if (existingOrgs.length > 0) {
+					analytics.onboardingNameSubmitted({
+						name_length: name.trim().length,
+					})
+					goToStep("greeting")
+					return
+				}
+
+				const uniqueSlug = generateOrgSlug(name.trim())
+				const completedAt = new Date().toISOString()
+				const newOrg = await authClient.organization.create({
+					name: name.trim(),
+					slug: uniqueSlug,
+					metadata: {
+						signupSource: "consumer",
+						webOnboarding: {
+							completedAt: null,
+							steps: {
+								welcomeInput: {
+									startedAt: completedAt,
+									completedAt,
+									data: {},
+								},
+							},
+						},
+					},
+				})
+
+				await setActiveOrg(newOrg.slug)
+
+				analytics.onboardingNameSubmitted({ name_length: name.trim().length })
+				goToStep("greeting")
+			} catch (error) {
+				console.error("Onboarding submit failed:", error)
+				toast.error(
+					error instanceof Error
+						? error.message
+						: "Could not set up your workspace. Please try again.",
+				)
+			} finally {
+				setIsSubmitting(false)
+			}
 		}
 	}
 
