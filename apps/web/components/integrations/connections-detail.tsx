@@ -3,11 +3,7 @@
 import { dmSans125ClassName } from "@/lib/fonts"
 import { cn } from "@lib/utils"
 import { $fetch } from "@lib/api"
-import {
-	DEFAULT_SUBSCRIPTION_STATUS,
-	fetchSubscriptionStatus,
-	isAllowedFrom,
-} from "@lib/queries"
+import { hasActivePlan } from "@lib/queries"
 import { GoogleDrive, Notion, OneDrive } from "@ui/assets/icons"
 import { useCustomer } from "autumn-js/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -184,12 +180,7 @@ export function ConnectionsDetail() {
 	const projects = (queryClient.getQueryData<Project[]>(["projects"]) ||
 		[]) as Project[]
 
-	const {
-		data: status = DEFAULT_SUBSCRIPTION_STATUS,
-		isLoading: isCheckingStatus,
-	} = fetchSubscriptionStatus(autumn, !autumn.isLoading)
-
-	const hasProProduct = isAllowedFrom(status, "api_pro")
+	const hasProProduct = hasActivePlan(autumn.customer?.products, "api_pro")
 
 	const connectionsFeature = autumn.customer?.features?.connections
 	const connectionsUsed = connectionsFeature?.usage ?? 0
@@ -268,7 +259,7 @@ export function ConnectionsDetail() {
 		}
 	}
 
-	const isLoading = autumn.isLoading || isCheckingStatus
+	const isLoading = autumn.isLoading
 
 	return (
 		<div

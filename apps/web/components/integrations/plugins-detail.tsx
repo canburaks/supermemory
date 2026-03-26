@@ -4,11 +4,7 @@ import { cn } from "@lib/utils"
 import { dmSans125ClassName } from "@/lib/fonts"
 import { authClient } from "@lib/auth"
 import { useAuth } from "@lib/auth-context"
-import {
-	DEFAULT_SUBSCRIPTION_STATUS,
-	fetchSubscriptionStatus,
-	isAllowedFrom,
-} from "@lib/queries"
+import { hasActivePlan } from "@lib/queries"
 import { useCustomer } from "autumn-js/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -109,12 +105,7 @@ export function PluginsDetail() {
 	})
 	const [keyCopied, setKeyCopied] = useState(false)
 
-	const {
-		data: status = DEFAULT_SUBSCRIPTION_STATUS,
-		isLoading: isCheckingStatus,
-	} = fetchSubscriptionStatus(autumn, !autumn.isLoading)
-
-	const hasProProduct = isAllowedFrom(status, "api_pro")
+	const hasProProduct = hasActivePlan(autumn.customer?.products, "api_pro")
 
 	const { data: pluginsData } = useQuery({
 		queryFn: async () => {
@@ -242,7 +233,7 @@ export function PluginsDetail() {
 		}
 	}
 
-	const isLoading = autumn.isLoading || isCheckingStatus
+	const isLoading = autumn.isLoading
 	const availablePlugins = pluginsData?.plugins ?? Object.keys(PLUGIN_CATALOG)
 
 	return (
