@@ -8,6 +8,7 @@ import {
 	ChevronRightIcon,
 	Loader2,
 	SearchIcon,
+	GlobeIcon,
 	PlusIcon,
 	BookOpenIcon,
 	ClockIcon,
@@ -16,12 +17,14 @@ import {
 	WrenchIcon,
 } from "lucide-react"
 import { cn } from "@lib/utils"
+import { isWebSearchToolName } from "@/lib/chat-web-search-tools"
 import { RelatedMemories } from "./related-memories"
 import { MessageActions } from "./message-actions"
-import { FollowUpQuestions } from "./follow-up-questions"
 
 const TOOL_META: Record<string, { label: string; icon: typeof SearchIcon }> = {
 	searchMemories: { label: "Search Memories", icon: SearchIcon },
+	web_search: { label: "Web search", icon: GlobeIcon },
+	google_search: { label: "Google search", icon: GlobeIcon },
 	addMemory: { label: "Add Memory", icon: PlusIcon },
 	fetchMemory: { label: "Fetch Memory", icon: BookOpenIcon },
 	scheduleTask: { label: "Schedule Task", icon: ClockIcon },
@@ -29,27 +32,85 @@ const TOOL_META: Record<string, { label: string; icon: typeof SearchIcon }> = {
 	cancelSchedule: { label: "Cancel Schedule", icon: XCircleIcon },
 }
 
-function ToolCallDisplay({
-	part,
-}: {
-	part: {
-		type: string
-		state: string
-		input?: unknown
-		output?: unknown
-		toolCallId?: string
-	}
-}) {
+type ToolCallDisplayPart = {
+	type: string
+	state: string
+	input?: unknown
+	output?: unknown
+	toolCallId?: string
+	errorText?: string
+}
+
+type SourceUrlPart = {
+	type: "source-url"
+	sourceId: string
+	url: string
+	title?: string
+}
+
+function WebSourcesGroup({ sources }: { sources: SourceUrlPart[] }) {
+	const [expanded, setExpanded] = useState(false)
+	if (sources.length === 0) return null
+
+	return (
+		<div className="rounded-lg border border-[#1E2128] bg-[#0D121A] text-xs my-1 overflow-hidden">
+			<button
+				type="button"
+				onClick={() => setExpanded(!expanded)}
+				className={cn(
+					"flex items-center gap-2 w-full px-3 py-2 cursor-pointer hover:bg-[#141922] transition-colors",
+					expanded && "border-b border-[#1E2128]",
+				)}
+			>
+				<GlobeIcon className="size-3 shrink-0 text-emerald-400" />
+				<span className="font-medium text-emerald-400">
+					Web sources
+					<span className="text-white/40 font-normal ml-1">
+						({sources.length})
+					</span>
+				</span>
+				{expanded ? (
+					<ChevronDownIcon className="size-3 text-white/30 shrink-0 ml-auto" />
+				) : (
+					<ChevronRightIcon className="size-3 text-white/30 shrink-0 ml-auto" />
+				)}
+			</button>
+			{expanded && (
+				<ul className="px-3 py-2 space-y-1.5 list-none">
+					{sources.map((s) => (
+						<li key={s.sourceId}>
+							<a
+								href={s.url}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-blue-400 hover:underline break-all"
+							>
+								{s.title?.trim() || s.url}
+							</a>
+						</li>
+					))}
+				</ul>
+			)}
+		</div>
+	)
+}
+
+function ToolCallDisplay({ part }: { part: ToolCallDisplayPart }) {
 	const [expanded, setExpanded] = useState(false)
 	const toolName = part.type.replace("tool-", "")
-	const meta = TOOL_META[toolName]
+	const meta =
+		TOOL_META[toolName] ??
+		(isWebSearchToolName(toolName)
+			? { label: "Web search", icon: GlobeIcon }
+			: undefined)
 	const Icon = meta?.icon ?? WrenchIcon
 	const label = meta?.label ?? toolName
 
 	const isLoading =
 		part.state === "input-streaming" || part.state === "input-available"
 	const isDone = part.state === "output-available"
-	const isError = part.state === "error"
+	const isError = part.state === "error" || part.state === "output-error"
+	const errorText = part.errorText
 
 	return (
 		<div className="rounded-lg border border-[#1E2128] bg-[#0D121A] text-xs my-1 overflow-hidden">
@@ -119,6 +180,14 @@ function ToolCallDisplay({
 							</pre>
 						</div>
 					)}
+					{isError && errorText && (
+						<div>
+							<div className="text-red-400/80 mb-1">Error</div>
+							<pre className="text-red-300/90 bg-[#080B10] rounded p-2 overflow-x-auto max-h-24 whitespace-pre-wrap break-all text-xs">
+								{errorText}
+							</pre>
+						</div>
+					)}
 				</div>
 			)}
 		</div>
@@ -133,13 +202,10 @@ interface AgentMessageProps {
 	copiedMessageId: string | null
 	messageFeedback: Record<string, "like" | "dislike" | null>
 	expandedMemories: string | null
-	followUpQuestions?: string[]
-	isLoadingFollowUps?: boolean
 	onCopy: (messageId: string, text: string) => void
 	onLike: (messageId: string) => void
 	onDislike: (messageId: string) => void
 	onToggleMemories: (messageId: string) => void
-	onQuestionClick?: (question: string) => void
 }
 
 export function AgentMessage({
@@ -150,13 +216,10 @@ export function AgentMessage({
 	copiedMessageId,
 	messageFeedback,
 	expandedMemories,
-	followUpQuestions = [],
-	isLoadingFollowUps = false,
 	onCopy,
 	onLike,
 	onDislike,
 	onToggleMemories,
-	onQuestionClick,
 }: AgentMessageProps) {
 	const isLastAgentMessage =
 		index === messagesLength - 1 && message.role === "assistant"
@@ -177,6 +240,48 @@ export function AgentMessage({
 					/>
 
 					{message.parts.map((part, partIndex) => {
+						if (part.type === "source-url") {
+							if (
+								partIndex > 0 &&
+								message.parts[partIndex - 1]?.type === "source-url"
+							) {
+								return null
+							}
+							const sources: SourceUrlPart[] = []
+							for (let j = partIndex; j < message.parts.length; j++) {
+								const p = message.parts[j]
+								if (!p || p.type !== "source-url") break
+								sources.push(p as SourceUrlPart)
+							}
+							return (
+								<WebSourcesGroup
+									key={`${message.id}-web-sources-${partIndex}`}
+									sources={sources}
+								/>
+							)
+						}
+						if (part.type === "source-document") {
+							const doc = part as {
+								type: "source-document"
+								sourceId: string
+								title: string
+								filename?: string
+							}
+							return (
+								<div
+									key={`${message.id}-doc-${doc.sourceId}-${partIndex}`}
+									className="rounded-lg border border-[#1E2128] bg-[#0D121A] px-3 py-2 text-xs my-1"
+								>
+									<div className="text-white/40 mb-0.5">Document</div>
+									<div className="text-white/80">{doc.title}</div>
+									{doc.filename && (
+										<div className="text-white/50 text-[11px] mt-0.5">
+											{doc.filename}
+										</div>
+									)}
+								</div>
+							)
+						}
 						if (part.type === "text") {
 							return (
 								<div
@@ -187,21 +292,43 @@ export function AgentMessage({
 								</div>
 							)
 						}
+						if (part.type === "dynamic-tool") {
+							const dt = part as {
+								type: "dynamic-tool"
+								toolName: string
+								toolCallId: string
+								state: string
+								input?: unknown
+								output?: unknown
+								errorText?: string
+							}
+							const displayState =
+								dt.state === "output-error" ? "error" : dt.state
+							return (
+								<ToolCallDisplay
+									key={`${message.id}-${dt.toolCallId}-${partIndex}`}
+									part={{
+										type: `tool-${dt.toolName}`,
+										state: displayState,
+										input: dt.input,
+										output:
+											dt.state === "output-available" ? dt.output : undefined,
+										toolCallId: dt.toolCallId,
+										errorText: dt.errorText,
+									}}
+								/>
+							)
+						}
 						if (part.type.startsWith("tool-")) {
 							return (
 								<ToolCallDisplay
 									key={`${message.id}-${partIndex}`}
-									part={part as any}
+									part={part as ToolCallDisplayPart}
 								/>
 							)
 						}
 						return null
 					})}
-					<FollowUpQuestions
-						questions={followUpQuestions}
-						isLoading={isLoadingFollowUps}
-						onQuestionClick={onQuestionClick || (() => {})}
-					/>
 				</div>
 			</div>
 			<MessageActions

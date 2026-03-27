@@ -1,16 +1,12 @@
 import { useAuth } from "@lib/auth-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@ui/components/avatar"
 import type { UIMessage } from "@ai-sdk/react"
-import { cn } from "@lib/utils"
-import { dmSansClassName } from "@/lib/fonts"
-
-interface MemoryResult {
-	documentId?: string
-	title?: string
-	content?: string
-	url?: string
-	score?: number
-}
+import {
+	type ChatMemoryCard,
+	memoryResultsFromSearchToolOutput,
+} from "@/lib/chat-search-memory-results"
+import { isWebSearchToolName } from "@/lib/chat-web-search-tools"
+import { MemorySearchResultCard } from "../message/memory-search-result-card"
 
 interface ReasoningStep {
 	type: string
@@ -28,7 +24,8 @@ export function ChainOfThought({ messages }: { messages: UIMessage[] }) {
 	}> = []
 
 	for (let i = 0; i < messages.length; i++) {
-		const message = messages[i]!
+		const message = messages[i]
+		if (!message) continue
 		if (message.role === "user") {
 			// Find the next assistant message after this user message
 			const agentMessage = messages
@@ -76,24 +73,80 @@ export function ChainOfThought({ messages }: { messages: UIMessage[] }) {
 									message: "Error searching memories",
 								})
 							}
+							return
+						}
+
+						const webSearchPart =
+							part.type === "dynamic-tool" &&
+							isWebSearchToolName(
+								(part as { toolName?: string }).toolName ?? "",
+							)
+								? (part as {
+										type: "dynamic-tool"
+										toolName: string
+										state: string
+									})
+								: part.type === "tool-web_search" ||
+										part.type === "tool-google_search"
+									? (part as { type: string; state: string })
+									: null
+
+						if (webSearchPart) {
+							if (
+								webSearchPart.state === "input-available" ||
+								webSearchPart.state === "input-streaming"
+							) {
+								reasoningSteps.push({
+									type: "web-search",
+									state: webSearchPart.state,
+									message: "Searching the web...",
+								})
+							} else if (webSearchPart.state === "output-available") {
+								reasoningSteps.push({
+									type: "web-search",
+									state: webSearchPart.state,
+									message: "Explored the web",
+								})
+							} else if (webSearchPart.state === "output-error") {
+								reasoningSteps.push({
+									type: "web-search",
+									state: webSearchPart.state,
+									message: "Web search failed",
+								})
+							}
 						}
 					})
+
+					const webSourceCount = pair.agentMessage.parts.filter(
+						(p) => p.type === "source-url",
+					).length
+					if (webSourceCount > 0) {
+						const hasToolWebDone = reasoningSteps.some(
+							(s) => s.type === "web-search" && s.state === "output-available",
+						)
+						if (!hasToolWebDone) {
+							reasoningSteps.push({
+								type: "web-sources",
+								state: "done",
+								message:
+									webSourceCount === 1
+										? "Found 1 web source"
+										: `Found ${webSourceCount} web sources`,
+							})
+						}
+					}
 				}
 
-				const memoryResults: MemoryResult[] = []
+				const memoryResults: ChatMemoryCard[] = []
 				if (pair.agentMessage) {
 					pair.agentMessage.parts.forEach((part) => {
 						if (
 							part.type === "tool-searchMemories" &&
 							part.state === "output-available"
 						) {
-							const output = part.output as
-								| { results?: MemoryResult[] }
-								| undefined
-							const results = Array.isArray(output?.results)
-								? output.results
-								: []
-							memoryResults.push(...results)
+							memoryResults.push(
+								...memoryResultsFromSearchToolOutput(part.output),
+							)
 						}
 					})
 				}
@@ -133,75 +186,14 @@ export function ChainOfThought({ messages }: { messages: UIMessage[] }) {
 									)}
 
 									{memoryResults.length > 0 && (
-										<div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-											{memoryResults.map((result, idx) => {
-												const isClickable =
-													result.url &&
-													(result.url.startsWith("http://") ||
-														result.url.startsWith("https://"))
-
-												const content = (
-													<div className="">
-														<div className="bg-[#060D17] p-2 px-[10px] rounded-xl m-[2px]">
-															{result.title && (
-																<div className="text-xs text-[#525D6E] line-clamp-2">
-																	{result.title}
-																</div>
-															)}
-															{result.content && (
-																<div className="text-xs text-[#525D6E]/80 line-clamp-2 mt-1">
-																	{result.content}
-																</div>
-															)}
-															{result.url && (
-																<div className="text-xs text-[#525D6E] mt-1 truncate">
-																	{result.url}
-																</div>
-															)}
-														</div>
-														{result.score && (
-															<div className="flex justify-center p-1">
-																<div
-																	className={cn(
-																		"text-[10px] inline-block bg-clip-text text-transparent font-medium",
-																		dmSansClassName(),
-																	)}
-																	style={{
-																		backgroundImage:
-																			"var(--grad-1, linear-gradient(94deg, #369BFD 4.8%, #36FDFD 77.04%, #36FDB5 143.99%))",
-																	}}
-																>
-																	Relevancy score:{" "}
-																	{(result.score * 100).toFixed(1)}%
-																</div>
-															</div>
-														)}
-													</div>
-												)
-
-												if (isClickable) {
-													return (
-														<a
-															className="block p-2 bg-[#0C1829]/50 rounded-md border border-[#525D6E]/20 hover:bg-[#0C1829]/70 transition-colors cursor-pointer"
-															href={result.url}
-															key={result.documentId || idx}
-															rel="noopener noreferrer"
-															target="_blank"
-														>
-															{content}
-														</a>
-													)
-												}
-
-												return (
-													<div
-														className={cn("bg-[#0C1829] rounded-xl")}
-														key={result.documentId || idx}
-													>
-														{content}
-													</div>
-												)
-											})}
+										<div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto items-stretch">
+											{memoryResults.map((result, idx) => (
+												<MemorySearchResultCard
+													key={result.documentId ?? idx}
+													result={result}
+													tone="input"
+												/>
+											))}
 										</div>
 									)}
 								</div>

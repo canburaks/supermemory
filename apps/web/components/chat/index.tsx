@@ -119,12 +119,6 @@ export function ChatSidebar({
 		Record<string, "like" | "dislike" | null>
 	>({})
 	const [expandedMemories, setExpandedMemories] = useState<string | null>(null)
-	const [followUpQuestions, setFollowUpQuestions] = useState<
-		Record<string, string[]>
-	>({})
-	const [loadingFollowUps, setLoadingFollowUps] = useState<
-		Record<string, boolean>
-	>({})
 	const [isInputExpanded, setIsInputExpanded] = useState(false)
 	const [isScrolledToBottom, setIsScrolledToBottom] = useState(true)
 	const [heightOffset, setHeightOffset] = useState(95)
@@ -136,25 +130,24 @@ export function ChatSidebar({
 	const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
 		null,
 	)
-	const pendingFollowUpGenerations = useRef<Set<string>>(new Set())
 	const messagesContainerRef = useRef<HTMLDivElement>(null)
 	const sentQueuedMessageRef = useRef<string | null>(null)
 	const { selectedProject } = useProject()
 	const { viewMode } = useViewMode()
-	const { user } = useAuth()
+	const { user: _user } = useAuth()
 	const [threadId, setThreadId] = useQueryState("thread", threadParam)
 	const [fallbackChatId, setFallbackChatId] = useState(() => generateId())
 	const currentChatId = threadId ?? fallbackChatId
 	const chatIdRef = useRef(currentChatId)
 	chatIdRef.current = currentChatId
-	const setCurrentChatId = useCallback(
+	const _setCurrentChatId = useCallback(
 		(id: string) => setThreadId(id),
 		[setThreadId],
 	)
 	const chatTransport = useMemo(
 		() =>
 			new DefaultChatTransport({
-				api: `${process.env.NEXT_PUBLIC_BACKEND_URL ?? "https://api.supermemory.ai"}/chat/v2`,
+				api: `${process.env.NEXT_PUBLIC_BACKEND_URL ?? "https://api.supermemory.ai"}/chat`,
 				credentials: "include",
 				prepareSendMessagesRequest: ({ messages }) => ({
 					body: {
@@ -196,15 +189,6 @@ export function ChatSidebar({
 	const { messages, sendMessage, status, setMessages, stop } = useChat({
 		id: currentChatId ?? undefined,
 		transport: chatTransport,
-		onFinish: async (result) => {
-			if (result.message.role !== "assistant") return
-
-			// Mark this message as needing follow-up generation
-			// We'll generate it after the message is fully in the messages array
-			if (result.message.id) {
-				pendingFollowUpGenerations.current.add(result.message.id)
-			}
-		},
 	})
 
 	useEffect(() => {
@@ -213,100 +197,6 @@ export function ChatSidebar({
 			setPendingThreadLoad(null)
 		}
 	}, [currentChatId, pendingThreadLoad, setMessages])
-
-	// Generate follow-up questions after assistant messages are complete
-	useEffect(() => {
-		const generateFollowUps = async () => {
-			// Find assistant messages that need follow-up generation
-			const messagesToProcess = messages.filter(
-				(msg) =>
-					msg.role === "assistant" &&
-					pendingFollowUpGenerations.current.has(msg.id) &&
-					!followUpQuestions[msg.id] &&
-					!loadingFollowUps[msg.id],
-			)
-
-			for (const message of messagesToProcess) {
-				// Get complete text from the message
-				const assistantText = message.parts
-					.filter((p) => p.type === "text")
-					.map((p) => p.text)
-					.join(" ")
-					.trim()
-
-				// Only generate if we have substantial text (at least 50 chars)
-				// This ensures the message is complete, not just the first chunk
-				// Also check if status is idle to ensure streaming is complete
-				if (
-					assistantText.length < 50 ||
-					status === "streaming" ||
-					status === "submitted"
-				) {
-					continue
-				}
-
-				// Mark as processing
-				pendingFollowUpGenerations.current.delete(message.id)
-				setLoadingFollowUps((prev) => ({
-					...prev,
-					[message.id]: true,
-				}))
-
-				try {
-					// Get recent messages for context
-					const recentMessages = messages.slice(-5).map((msg) => ({
-						role: msg.role,
-						content: msg.parts
-							.filter((p) => p.type === "text")
-							.map((p) => p.text)
-							.join(" "),
-					}))
-
-					const response = await fetch(
-						`${process.env.NEXT_PUBLIC_BACKEND_URL}/chat/follow-ups`,
-						{
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
-							},
-							credentials: "include",
-							body: JSON.stringify({
-								messages: recentMessages,
-								assistantResponse: assistantText,
-							}),
-						},
-					)
-
-					if (response.ok) {
-						const data = await response.json()
-						if (data.questions && Array.isArray(data.questions)) {
-							setFollowUpQuestions((prev) => ({
-								...prev,
-								[message.id]: data.questions,
-							}))
-						}
-					}
-				} catch (error) {
-					console.error("Failed to generate follow-up questions:", error)
-				} finally {
-					setLoadingFollowUps((prev) => ({
-						...prev,
-						[message.id]: false,
-					}))
-				}
-			}
-		}
-
-		// Only generate if not currently streaming or submitted
-		// Small delay to ensure message is fully processed
-		if (status !== "streaming" && status !== "submitted") {
-			const timeoutId = setTimeout(() => {
-				generateFollowUps()
-			}, 300)
-
-			return () => clearTimeout(timeoutId)
-		}
-	}, [messages, followUpQuestions, loadingFollowUps, status])
 
 	const checkIfScrolledToBottom = useCallback(() => {
 		if (!messagesContainerRef.current) return
@@ -879,19 +769,10 @@ export function ChatSidebar({
 											copiedMessageId={copiedMessageId}
 											messageFeedback={messageFeedback}
 											expandedMemories={expandedMemories}
-											followUpQuestions={followUpQuestions[message.id] || []}
-											isLoadingFollowUps={loadingFollowUps[message.id] || false}
 											onCopy={handleCopyMessage}
 											onLike={handleLikeMessage}
 											onDislike={handleDislikeMessage}
 											onToggleMemories={handleToggleMemories}
-											onQuestionClick={(question) => {
-												analytics.chatFollowUpClicked({
-													thread_id: currentChatId || undefined,
-												})
-												analytics.chatMessageSent({ source: "follow_up" })
-												setInput(question)
-											}}
 										/>
 									)}
 								</div>

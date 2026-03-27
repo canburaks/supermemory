@@ -110,12 +110,8 @@ export const analytics = {
 	}) => safeCapture("highlight_clicked", props),
 
 	// chat analytics
-	chatMessageSent: (props: {
-		source: "typed" | "suggested" | "highlight" | "follow_up"
-	}) => safeCapture("chat_message_sent", props),
-
-	chatFollowUpClicked: (props: { thread_id?: string }) =>
-		safeCapture("chat_follow_up_clicked", props),
+	chatMessageSent: (props: { source: "typed" | "suggested" | "highlight" }) =>
+		safeCapture("chat_message_sent", props),
 
 	chatSuggestedQuestionClicked: () =>
 		safeCapture("chat_suggested_question_clicked"),
