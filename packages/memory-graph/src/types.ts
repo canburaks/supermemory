@@ -1,148 +1,204 @@
-import type {
-	DocumentsResponse,
-	DocumentWithMemories,
-	MemoryEntry,
-} from "./api-types"
+// Graph API types matching backend response
 
-// Re-export for convenience
-export type { DocumentsResponse, DocumentWithMemories, MemoryEntry }
+import type { MemoryRelation } from "./api-types"
+
+export interface GraphApiMemory {
+	id: string
+	memory: string
+	content?: string | null
+	isStatic: boolean
+	spaceId: string
+	isLatest: boolean
+	isForgotten: boolean
+	forgetAfter: string | null
+	forgetReason: string | null
+	version: number
+	parentMemoryId: string | null
+	rootMemoryId: string | null
+	createdAt: string
+	updatedAt: string
+	// Relation fields from backend
+	relation?: MemoryRelation | null
+	updatesMemoryId?: string | null
+	nextVersionId?: string | null
+	memoryRelations?: Record<string, MemoryRelation> | null
+	// Source/join fields
+	spaceContainerTag?: string | null
+}
+
+export interface GraphApiDocument {
+	id: string
+	title: string | null
+	summary: string | null
+	documentType: string
+	createdAt: string
+	updatedAt: string
+	memories: GraphApiMemory[]
+}
+
+export interface GraphApiEdge {
+	source: string
+	target: string
+	edgeType: MemoryRelation
+}
+
+// Typed node data
+
+export interface DocumentNodeData {
+	id: string
+	title: string | null
+	summary: string | null
+	type: string
+	createdAt: string
+	updatedAt: string
+	memories: GraphApiMemory[]
+}
+
+export interface MemoryNodeData {
+	id: string
+	memory: string
+	content: string
+	documentId: string
+	isStatic: boolean
+	isLatest: boolean
+	isForgotten: boolean
+	forgetAfter: string | null
+	forgetReason: string | null
+	version: number
+	parentMemoryId: string | null
+	spaceId: string
+	createdAt: string
+	updatedAt: string
+	relation?: MemoryRelation | null
+	memoryRelations?: Record<string, MemoryRelation> | null
+}
 
 export interface GraphNode {
 	id: string
 	type: "document" | "memory"
 	x: number
 	y: number
-	data: DocumentWithMemories | MemoryEntry
+	data: DocumentNodeData | MemoryNodeData
 	size: number
-	color: string
+	borderColor: string
 	isHovered: boolean
 	isDragging: boolean
 	// D3-force simulation properties
-	vx?: number // velocity x
-	vy?: number // velocity y
-	fx?: number | null // fixed x position (for pinning during drag)
-	fy?: number | null // fixed y position (for pinning during drag)
+	vx?: number
+	vy?: number
+	fx?: number | null
+	fy?: number | null
 }
-
-export type MemoryRelation = "updates" | "extends" | "derives"
 
 export interface GraphEdge {
 	id: string
-	// D3-force mutates source/target from string IDs to node references during simulation
 	source: string | GraphNode
 	target: string | GraphNode
-	similarity: number
 	visualProps: {
 		opacity: number
 		thickness: number
-		glow: number
-		pulseDuration: number
 	}
-	color: string
-	edgeType: "doc-memory" | "doc-doc" | "version"
-	relationType?: MemoryRelation
+	edgeType: MemoryRelation
 }
 
-export interface SpacesDropdownProps {
-	selectedSpace: string
-	availableSpaces: string[]
-	spaceMemoryCounts: Record<string, number>
-	onSpaceChange: (space: string) => void
-}
-
-export interface NodeDetailPanelProps {
-	node: GraphNode | null
-	onClose: () => void
-	variant?: "console" | "consumer"
+export interface GraphThemeColors {
+	bg: string
+	docFill: string
+	docStroke: string
+	docInnerFill: string
+	memFill: string
+	memFillHover: string
+	memStrokeDefault: string
+	accent: string
+	textPrimary: string
+	textSecondary: string
+	textMuted: string
+	edgeDerives: string
+	edgeUpdates: string
+	edgeExtends: string
+	memBorderForgotten: string
+	memBorderExpiring: string
+	memBorderRecent: string
+	glowColor: string
+	iconColor: string
+	popoverBg: string
+	popoverBorder: string
+	popoverTextPrimary: string
+	popoverTextSecondary: string
+	popoverTextMuted: string
+	controlBg: string
+	controlBorder: string
 }
 
 export interface GraphCanvasProps {
 	nodes: GraphNode[]
 	edges: GraphEdge[]
-	panX: number
-	panY: number
-	zoom: number
 	width: number
 	height: number
-	onNodeHover: (nodeId: string | null) => void
-	onNodeClick: (nodeId: string) => void
-	onNodeDragStart: (nodeId: string, e: React.MouseEvent) => void
-	onNodeDragMove: (e: React.MouseEvent) => void
-	onNodeDragEnd: () => void
-	onPanStart: (e: React.MouseEvent) => void
-	onPanMove: (e: React.MouseEvent) => void
-	onPanEnd: () => void
-	onWheel: (e: React.WheelEvent) => void
-	onDoubleClick: (e: React.MouseEvent) => void
-	onTouchStart?: (e: React.TouchEvent) => void
-	onTouchMove?: (e: React.TouchEvent) => void
-	onTouchEnd?: (e: React.TouchEvent) => void
-	draggingNodeId: string | null
-	// Optional list of document IDs (customId or internal id) to highlight
+	colors: GraphThemeColors
 	highlightDocumentIds?: string[]
-	// Physics simulation state
-	isSimulationActive?: boolean
-	// Selected node ID - dims all other nodes and edges
 	selectedNodeId?: string | null
+	onNodeHover: (nodeId: string | null) => void
+	onNodeClick: (nodeId: string | null) => void
+	onNodeDragStart: (nodeId: string) => void
+	onNodeDragEnd: () => void
+	onViewportChange?: (zoom: number, popoverVisible: boolean) => void
+	canvasRef?: React.RefObject<HTMLCanvasElement | null>
+	simulation?: import("./canvas/simulation").ForceSimulation
+	viewportRef?: React.RefObject<
+		import("./canvas/viewport").ViewportState | null
+	>
 }
 
 export interface MemoryGraphProps {
-	/** The documents to display in the graph */
-	documents: DocumentWithMemories[]
-	/** Whether the initial data is loading */
+	/** Documents to display - pass this for direct data mode */
+	documents?: GraphApiDocument[]
+	/** Whether data is loading */
 	isLoading?: boolean
-	/** Error that occurred during data fetching */
-	error?: Error | null
-	/** Optional children to render when no documents exist */
-	children?: React.ReactNode
-	/** Whether more data is being loaded (for pagination) */
+	/** Whether more data is being loaded */
 	isLoadingMore?: boolean
-	/** Total number of documents loaded */
-	totalLoaded?: number
+	/** Callback to load more documents */
+	onLoadMore?: () => void
 	/** Whether there are more documents to load */
 	hasMore?: boolean
-	/** Callback to load more documents (for pagination) */
-	loadMoreDocuments?: () => Promise<void>
-	/** Show/hide the spaces filter dropdown */
-	showSpacesSelector?: boolean
-	/** Visual variant - "console" for full view, "consumer" for embedded */
+	/** Error from data fetching */
+	error?: Error | null
+	/** Children to render when no documents */
+	children?: React.ReactNode
+	/** Visual variant */
 	variant?: "console" | "consumer"
-	/** Optional ID for the legend component */
+	/** Optional legend ID */
 	legendId?: string
-	/** Document IDs to highlight in the graph */
+	/** Document IDs to highlight */
 	highlightDocumentIds?: string[]
-	/** Whether highlights are currently visible */
+	/** Whether highlights are visible */
 	highlightsVisible?: boolean
-	/** Pixels occluded on the right side of the viewport */
-	occludedRightPx?: number
-	/** Whether to auto-load more documents based on viewport visibility */
-	autoLoadOnViewport?: boolean
-	/** Theme class name to apply */
-	themeClassName?: string
-
-	// External space control
-	/** Currently selected space (for controlled component) */
-	selectedSpace?: string
-	/** Callback when space selection changes (for controlled component) */
-	onSpaceChange?: (spaceId: string) => void
-
-	// Memory limit control
-	/** Maximum number of memories to display per document when a space is selected */
-	memoryLimit?: number
-	/** Maximum total number of memory nodes to display across all documents (default: unlimited) */
+	/** Container tags for filtering (used by apps with their own API hooks) */
+	containerTags?: string[]
+	/** Specific document IDs to show */
+	documentIds?: string[]
+	/** Max nodes to display */
 	maxNodes?: number
-
-	// Feature flags
-	/** Enable experimental features */
-	isExperimental?: boolean
-
-	// Slideshow control
-	/** Whether slideshow mode is currently active */
+	/** Show FPS counter overlay */
+	showFps?: boolean
+	/** Slideshow mode */
 	isSlideshowActive?: boolean
-	/** Callback when slideshow selects a new node (provides node ID) */
 	onSlideshowNodeChange?: (nodeId: string | null) => void
-	/** Callback when user clicks outside during slideshow (to stop it) */
 	onSlideshowStop?: () => void
+	/** Canvas ref for external access (e.g. screenshot export) */
+	canvasRef?: React.RefObject<HTMLCanvasElement | null>
+	/** Custom theme colors - if not provided, reads from CSS variables */
+	colors?: GraphThemeColors
+	/** Total count for loading indicator */
+	totalCount?: number
+}
+
+export interface ChainEntry {
+	id: string
+	version: number
+	memory: string
+	isForgotten: boolean
+	isLatest: boolean
 }
 
 export interface LegendProps {
@@ -160,9 +216,9 @@ export interface LoadingIndicatorProps {
 	variant?: "console" | "consumer"
 }
 
-export interface ControlsProps {
-	onZoomIn: () => void
-	onZoomOut: () => void
-	onResetView: () => void
-	variant?: "console" | "consumer"
-}
+// Re-export api-types for backward compatibility
+export type {
+	DocumentWithMemories,
+	MemoryEntry,
+	DocumentsResponse,
+} from "./api-types"

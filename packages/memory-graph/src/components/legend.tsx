@@ -1,276 +1,442 @@
-"use client"
+import { memo, useState } from "react"
+import type { GraphEdge, GraphNode, GraphThemeColors } from "../types"
 
-import { useIsMobile } from "@/hooks/use-mobile"
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/ui/collapsible"
-import { GlassMenuEffect } from "@/ui/glass-effect"
-import { Brain, ChevronDown, ChevronUp, FileText } from "lucide-react"
-import { memo, useEffect, useState } from "react"
-import { colors } from "@/constants"
-import type { GraphEdge, GraphNode, LegendProps } from "@/types"
-import * as styles from "./legend.css"
-
-// Cookie utility functions for legend state
-const setCookie = (name: string, value: string, days = 365) => {
-	if (typeof document === "undefined") return
-	const expires = new Date()
-	expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
-	document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`
-}
-
-const getCookie = (name: string): string | null => {
-	if (typeof document === "undefined") return null
-	const nameEQ = `${name}=`
-	const ca = document.cookie.split(";")
-	for (let i = 0; i < ca.length; i++) {
-		let c = ca[i]
-		if (!c) continue
-		while (c.charAt(0) === " ") c = c.substring(1, c.length)
-		if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length)
-	}
-	return null
-}
-
-interface ExtendedLegendProps extends LegendProps {
-	id?: string
+interface LegendProps {
 	nodes?: GraphNode[]
 	edges?: GraphEdge[]
 	isLoading?: boolean
+	colors: GraphThemeColors
+}
+
+function HexagonIcon({
+	fill,
+	stroke,
+	size = 12,
+}: {
+	fill: string
+	stroke: string
+	size?: number
+}) {
+	return (
+		<svg
+			aria-hidden="true"
+			height={size}
+			viewBox="0 0 12 12"
+			width={size}
+			style={{ flexShrink: 0 }}
+		>
+			<polygon
+				fill={fill}
+				points="6,1.5 10.4,3.75 10.4,8.25 6,10.5 1.6,8.25 1.6,3.75"
+				stroke={stroke}
+				strokeWidth="0.6"
+			/>
+		</svg>
+	)
+}
+
+function LineIcon({
+	color,
+	dashed = false,
+}: {
+	color: string
+	dashed?: boolean
+}) {
+	return (
+		<div
+			style={{
+				width: 12,
+				height: 12,
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				flexShrink: 0,
+			}}
+		>
+			<div
+				style={{
+					width: 12,
+					height: 0,
+					borderTop: `2.5px ${dashed ? "dashed" : "solid"} ${color}`,
+				}}
+			/>
+		</div>
+	)
+}
+
+function ChevronDownIcon({ color }: { color: string }) {
+	return (
+		<svg
+			width="12"
+			height="12"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke={color}
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			style={{ flexShrink: 0 }}
+			aria-hidden="true"
+		>
+			<path d="m6 9 6 6 6-6" />
+		</svg>
+	)
+}
+
+function ChevronRightIcon({ color }: { color: string }) {
+	return (
+		<svg
+			width="12"
+			height="12"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke={color}
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			style={{ flexShrink: 0 }}
+			aria-hidden="true"
+		>
+			<path d="m9 18 6-6-6-6" />
+		</svg>
+	)
+}
+
+function StatRow({
+	icon,
+	label,
+	count,
+	expandable = false,
+	expanded = false,
+	onToggle,
+	children,
+	colors,
+}: {
+	icon: React.ReactNode
+	label: string
+	count: number
+	expandable?: boolean
+	expanded?: boolean
+	onToggle?: () => void
+	children?: React.ReactNode
+	colors: GraphThemeColors
+}) {
+	const buttonStyle: React.CSSProperties = {
+		display: "flex",
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		width: "100%",
+		padding: 0,
+		outline: "none",
+		background: "none",
+		border: "none",
+		cursor: expandable ? "pointer" : "default",
+	}
+
+	const leftStyle: React.CSSProperties = {
+		display: "flex",
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 8,
+	}
+
+	const labelStyle: React.CSSProperties = {
+		fontSize: 12,
+		color: colors.textPrimary,
+		fontWeight: 400,
+	}
+
+	const countStyle: React.CSSProperties = {
+		fontSize: 12,
+		color: colors.textMuted,
+	}
+
+	const childrenContainerStyle: React.CSSProperties = {
+		paddingLeft: 10,
+		paddingTop: 6,
+		display: "flex",
+		flexDirection: "column",
+		gap: 6,
+	}
+
+	return (
+		<div style={{ display: "flex", flexDirection: "column" }}>
+			<button
+				onClick={expandable ? onToggle : undefined}
+				style={buttonStyle}
+				type="button"
+			>
+				<div style={leftStyle}>
+					{icon}
+					<span style={labelStyle}>{label}</span>
+					{expandable &&
+						(expanded ? (
+							<ChevronDownIcon color={colors.textMuted} />
+						) : (
+							<ChevronRightIcon color={colors.textMuted} />
+						))}
+				</div>
+				<span style={countStyle}>{count}</span>
+			</button>
+			{expandable && expanded && children && (
+				<div style={childrenContainerStyle}>{children}</div>
+			)}
+		</div>
+	)
 }
 
 export const Legend = memo(function Legend({
-	variant = "console",
-	id,
 	nodes = [],
 	edges = [],
-	isLoading = false,
-}: ExtendedLegendProps) {
-	const isMobile = useIsMobile()
-	const [isExpanded, setIsExpanded] = useState(true)
-	const [isInitialized, setIsInitialized] = useState(false)
+	isLoading: _isLoading = false,
+	colors,
+}: LegendProps) {
+	const [isExpanded, setIsExpanded] = useState(false)
+	const [connectionsExpanded, setConnectionsExpanded] = useState(true)
 
-	// Load saved preference on client side
-	useEffect(() => {
-		if (!isInitialized) {
-			const savedState = getCookie("legendCollapsed")
-			if (savedState === "true") {
-				setIsExpanded(false)
-			} else if (savedState === "false") {
-				setIsExpanded(true)
-			} else {
-				// Default: collapsed on mobile, expanded on desktop
-				setIsExpanded(!isMobile)
-			}
-			setIsInitialized(true)
-		}
-	}, [isInitialized, isMobile])
-
-	// Save to cookie when state changes
-	const handleToggleExpanded = (expanded: boolean) => {
-		setIsExpanded(expanded)
-		setCookie("legendCollapsed", expanded ? "false" : "true")
-	}
-
-	// Get container class based on variant and mobile state
-	const getContainerClass = () => {
-		if (variant === "console") {
-			return isMobile
-				? styles.legendContainer.consoleMobile
-				: styles.legendContainer.consoleDesktop
-		}
-		return isMobile
-			? styles.legendContainer.consumerMobile
-			: styles.legendContainer.consumerDesktop
-	}
-
-	// Calculate stats
 	const memoryCount = nodes.filter((n) => n.type === "memory").length
 	const documentCount = nodes.filter((n) => n.type === "document").length
+	const connectionCount = edges.length
 
-	const containerClass =
-		isMobile && !isExpanded
-			? `${getContainerClass()} ${styles.mobileSize.collapsed}`
-			: isMobile
-				? `${getContainerClass()} ${styles.mobileSize.expanded}`
-				: getContainerClass()
+	const outerStyle: React.CSSProperties = {
+		position: "absolute",
+		zIndex: 20,
+		overflow: "hidden",
+		bottom: 16,
+		left: 16,
+		width: 214,
+	}
+
+	const cardStyle: React.CSSProperties = {
+		borderRadius: 12,
+		backgroundColor: colors.controlBg,
+		border: `1px solid ${colors.controlBorder}`,
+		boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)",
+	}
+
+	const headerBtnStyle: React.CSSProperties = {
+		display: "flex",
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 6,
+		width: "100%",
+		cursor: "pointer",
+		outline: "none",
+		background: "none",
+		border: "none",
+		padding: 0,
+	}
+
+	const headerTextStyle: React.CSSProperties = {
+		fontSize: 14,
+		color: colors.textPrimary,
+		fontWeight: 400,
+	}
+
+	const sectionLabelStyle: React.CSSProperties = {
+		fontSize: 12,
+		color: colors.textMuted,
+		fontWeight: 400,
+		textTransform: "uppercase",
+		letterSpacing: "0.05em",
+	}
+
+	const rowStyle: React.CSSProperties = {
+		display: "flex",
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+	}
+
+	const rowLeftStyle: React.CSSProperties = {
+		display: "flex",
+		alignItems: "center",
+		gap: 8,
+	}
+
+	const edgeLabelStyle: React.CSSProperties = {
+		fontSize: 12,
+		color: colors.textPrimary,
+	}
+
+	const statusRowStyle: React.CSSProperties = {
+		display: "flex",
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 8,
+	}
 
 	return (
-		<div className={containerClass} id={id}>
-			<Collapsible onOpenChange={handleToggleExpanded} open={isExpanded}>
-				{/* Glass effect background */}
-				<GlassMenuEffect rounded="xl" />
+		<div style={outerStyle}>
+			<div style={cardStyle}>
+				<div style={{ padding: 12 }}>
+					<button
+						onClick={() => setIsExpanded(!isExpanded)}
+						style={headerBtnStyle}
+						type="button"
+					>
+						{isExpanded ? (
+							<ChevronDownIcon color={colors.textPrimary} />
+						) : (
+							<ChevronRightIcon color={colors.textPrimary} />
+						)}
+						<span style={headerTextStyle}>Legend</span>
+					</button>
 
-				<div className={styles.legendContent}>
-					{/* Mobile and Desktop collapsed state */}
-					{!isExpanded && (
-						<CollapsibleTrigger className={styles.collapsedTrigger}>
-							<div className={styles.collapsedContent}>
-								<div className={styles.collapsedText}>?</div>
-								<ChevronUp className={styles.collapsedIcon} />
-							</div>
-						</CollapsibleTrigger>
-					)}
-
-					{/* Expanded state */}
 					{isExpanded && (
-						<>
-							{/* Header with toggle */}
-							<div className={styles.legendHeader}>
-								<div className={styles.legendTitle}>Legend</div>
-								<CollapsibleTrigger className={styles.headerTrigger}>
-									<ChevronDown className={styles.headerIcon} />
-								</CollapsibleTrigger>
+						<div
+							style={{
+								marginTop: 16,
+								display: "flex",
+								flexDirection: "column",
+								gap: 16,
+							}}
+						>
+							{/* Statistics section */}
+							<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+								<span style={sectionLabelStyle}>Statistics</span>
+								<div
+									style={{ display: "flex", flexDirection: "column", gap: 6 }}
+								>
+									<StatRow
+										count={memoryCount}
+										icon={
+											<HexagonIcon
+												fill={colors.memFill}
+												stroke={colors.memStrokeDefault}
+											/>
+										}
+										label="Memories"
+										colors={colors}
+									/>
+									<StatRow
+										count={documentCount}
+										icon={
+											<div
+												style={{
+													width: 12,
+													height: 12,
+													flexShrink: 0,
+													borderRadius: 2,
+													backgroundColor: colors.controlBg,
+													border: `1px solid ${colors.controlBorder}`,
+												}}
+											/>
+										}
+										label="Documents"
+										colors={colors}
+									/>
+									<StatRow
+										count={connectionCount}
+										expandable
+										expanded={connectionsExpanded}
+										icon={
+											<svg
+												aria-hidden="true"
+												height="12"
+												viewBox="0 0 12 12"
+												width="12"
+												style={{ flexShrink: 0 }}
+											>
+												<circle cx="3" cy="3" fill={colors.textMuted} r="1.5" />
+												<circle cx="9" cy="3" fill={colors.textMuted} r="1.5" />
+												<circle cx="6" cy="9" fill={colors.textMuted} r="1.5" />
+												<line
+													stroke={colors.textMuted}
+													strokeWidth="0.8"
+													x1="3"
+													x2="9"
+													y1="3"
+													y2="3"
+												/>
+												<line
+													stroke={colors.textMuted}
+													strokeWidth="0.8"
+													x1="3"
+													x2="6"
+													y1="3"
+													y2="9"
+												/>
+												<line
+													stroke={colors.textMuted}
+													strokeWidth="0.8"
+													x1="9"
+													x2="6"
+													y1="3"
+													y2="9"
+												/>
+											</svg>
+										}
+										label="Connections"
+										onToggle={() =>
+											setConnectionsExpanded(!connectionsExpanded)
+										}
+										colors={colors}
+									>
+										<div
+											style={{
+												display: "flex",
+												flexDirection: "column",
+												gap: 6,
+											}}
+										>
+											<div style={rowStyle}>
+												<div style={rowLeftStyle}>
+													<LineIcon color={colors.edgeDerives} />
+													<span style={edgeLabelStyle}>Derives</span>
+												</div>
+											</div>
+											<div style={rowStyle}>
+												<div style={rowLeftStyle}>
+													<LineIcon color={colors.edgeUpdates} />
+													<span style={edgeLabelStyle}>Updates</span>
+												</div>
+											</div>
+											<div style={rowStyle}>
+												<div style={rowLeftStyle}>
+													<LineIcon color={colors.edgeExtends} dashed />
+													<span style={edgeLabelStyle}>Extends</span>
+												</div>
+											</div>
+										</div>
+									</StatRow>
+								</div>
 							</div>
 
-							<CollapsibleContent>
-								<div className={styles.sectionsContainer}>
-									{/* Stats Section */}
-									{!isLoading && (
-										<div className={styles.sectionWrapper}>
-											<div className={styles.sectionTitle}>Statistics</div>
-											<div className={styles.itemsList}>
-												<div className={styles.legendItem}>
-													<Brain
-														className={styles.legendIcon}
-														style={{ color: "rgb(96, 165, 250)" }}
-													/>
-													<span className={styles.legendText}>
-														{memoryCount} memories
-													</span>
-												</div>
-												<div className={styles.legendItem}>
-													<FileText
-														className={styles.legendIcon}
-														style={{ color: "rgb(203, 213, 225)" }}
-													/>
-													<span className={styles.legendText}>
-														{documentCount} documents
-													</span>
-												</div>
-												<div className={styles.legendItem}>
-													<div className={styles.gradientCircle} />
-													<span className={styles.legendText}>
-														{edges.length} connections
-													</span>
-												</div>
-											</div>
-										</div>
-									)}
-
-									{/* Node Types */}
-									<div className={styles.sectionWrapper}>
-										<div className={styles.sectionTitle}>Nodes</div>
-										<div className={styles.itemsList}>
-											<div className={styles.legendItem}>
-												<div className={styles.documentNode} />
-												<span className={styles.legendText}>Document</span>
-											</div>
-											<div className={styles.legendItem}>
-												<div className={styles.memoryNode} />
-												<span className={styles.legendText}>
-													Memory (latest)
-												</span>
-											</div>
-											<div className={styles.legendItem}>
-												<div className={styles.memoryNodeOlder} />
-												<span className={styles.legendText}>
-													Memory (older)
-												</span>
-											</div>
-										</div>
+							{/* Memory Status section */}
+							<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+								<span style={sectionLabelStyle}>Memory Status</span>
+								<div
+									style={{ display: "flex", flexDirection: "column", gap: 6 }}
+								>
+									<div style={statusRowStyle}>
+										<HexagonIcon
+											fill={colors.memFill}
+											stroke={colors.memBorderRecent}
+										/>
+										<span style={edgeLabelStyle}>Recent (&lt; 24h)</span>
 									</div>
-
-									{/* Status Indicators */}
-									<div className={styles.sectionWrapper}>
-										<div className={styles.sectionTitle}>Status</div>
-										<div className={styles.itemsList}>
-											<div className={styles.legendItem}>
-												<div className={styles.forgottenNode}>
-													<div className={styles.forgottenIcon}>✕</div>
-												</div>
-												<span className={styles.legendText}>Forgotten</span>
-											</div>
-											<div className={styles.legendItem}>
-												<div className={styles.expiringNode} />
-												<span className={styles.legendText}>Expiring soon</span>
-											</div>
-											<div className={styles.legendItem}>
-												<div className={styles.newNode}>
-													<div className={styles.newBadge} />
-												</div>
-												<span className={styles.legendText}>New memory</span>
-											</div>
-										</div>
+									<div style={statusRowStyle}>
+										<HexagonIcon
+											fill={colors.memFill}
+											stroke={colors.memBorderExpiring}
+										/>
+										<span style={edgeLabelStyle}>Expiring soon</span>
 									</div>
-
-									{/* Connection Types */}
-									<div className={styles.sectionWrapper}>
-										<div className={styles.sectionTitle}>Connections</div>
-										<div className={styles.itemsList}>
-											<div className={styles.legendItem}>
-												<div className={styles.connectionLine} />
-												<span className={styles.legendText}>Doc → Memory</span>
-											</div>
-											<div className={styles.legendItem}>
-												<div className={styles.similarityLine} />
-												<span className={styles.legendText}>
-													Doc similarity
-												</span>
-											</div>
-										</div>
-									</div>
-
-									{/* Relation Types */}
-									<div className={styles.sectionWrapper}>
-										<div className={styles.sectionTitle}>Relations</div>
-										<div className={styles.itemsList}>
-											{[
-												["updates", colors.relations.updates],
-												["extends", colors.relations.extends],
-												["derives", colors.relations.derives],
-											].map(([label, color]) => (
-												<div className={styles.legendItem} key={label}>
-													<div
-														className={styles.relationLine}
-														style={{ borderColor: color }}
-													/>
-													<span
-														className={styles.legendText}
-														style={{
-															color: color,
-															textTransform: "capitalize",
-														}}
-													>
-														{label}
-													</span>
-												</div>
-											))}
-										</div>
-									</div>
-
-									{/* Similarity Strength */}
-									<div className={styles.sectionWrapper}>
-										<div className={styles.sectionTitle}>Similarity</div>
-										<div className={styles.itemsList}>
-											<div className={styles.legendItem}>
-												<div className={styles.weakSimilarity} />
-												<span className={styles.legendText}>Weak</span>
-											</div>
-											<div className={styles.legendItem}>
-												<div className={styles.strongSimilarity} />
-												<span className={styles.legendText}>Strong</span>
-											</div>
-										</div>
+									<div style={statusRowStyle}>
+										<HexagonIcon
+											fill={colors.memFill}
+											stroke={colors.memBorderForgotten}
+										/>
+										<span style={edgeLabelStyle}>Forgotten</span>
 									</div>
 								</div>
-							</CollapsibleContent>
-						</>
+							</div>
+						</div>
 					)}
 				</div>
-			</Collapsible>
+			</div>
 		</div>
 	)
 })

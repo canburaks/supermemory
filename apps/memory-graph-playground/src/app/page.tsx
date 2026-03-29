@@ -1,10 +1,13 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import {
 	MemoryGraph,
 	type DocumentWithMemories,
+	type GraphApiDocument,
+	type GraphApiMemory,
 } from "@supermemory/memory-graph"
+import { generateMockGraphData } from "@supermemory/memory-graph/mock-data"
 
 interface DocumentsResponse {
 	documents: DocumentWithMemories[]
@@ -16,24 +19,50 @@ interface DocumentsResponse {
 	}
 }
 
+/** Convert the external API format to the internal graph format */
+function toGraphDocuments(docs: DocumentWithMemories[]): GraphApiDocument[] {
+	return docs.map((doc) => ({
+		id: doc.id,
+		title: doc.title,
+		summary: doc.summary ?? null,
+		documentType: doc.documentType,
+		createdAt: doc.createdAt,
+		updatedAt: doc.updatedAt,
+		memories: doc.memories.map(
+			(mem): GraphApiMemory => ({
+				id: mem.id,
+				memory: mem.content,
+				isStatic: mem.isStatic ?? false,
+				spaceId: mem.spaceId ?? "",
+				isLatest: mem.isLatest ?? true,
+				isForgotten: mem.isForgotten ?? false,
+				forgetAfter: mem.forgetAfter ?? null,
+				forgetReason: mem.forgetReason ?? null,
+				version: mem.version ?? 1,
+				parentMemoryId: mem.parentMemoryId ?? null,
+				rootMemoryId: mem.rootMemoryId ?? null,
+				createdAt: mem.createdAt,
+				updatedAt: mem.updatedAt,
+			}),
+		),
+	}))
+}
+
 export default function Home() {
 	const [apiKey, setApiKey] = useState("")
 	const [documents, setDocuments] = useState<DocumentWithMemories[]>([])
 	const [isLoading, setIsLoading] = useState(false)
-	const [isLoadingMore, setIsLoadingMore] = useState(false)
 	const [error, setError] = useState<Error | null>(null)
-	const [hasMore, setHasMore] = useState(false)
-	const [currentPage, setCurrentPage] = useState(0)
 	const [showGraph, setShowGraph] = useState(false)
-
-	// State for controlled space selection
-	const [selectedSpace, setSelectedSpace] = useState<string>("all")
+	const [stressTestCount, setStressTestCount] = useState(0)
 
 	// State for slideshow
 	const [isSlideshowActive, setIsSlideshowActive] = useState(false)
-	const [currentSlideshowNode, setCurrentSlideshowNode] = useState<
-		string | null
-	>(null)
+
+	// Mock data for stress testing
+	const [mockData, setMockData] = useState<{
+		documents: GraphApiDocument[]
+	} | null>(null)
 
 	const PAGE_SIZE = 500
 
@@ -43,8 +72,6 @@ export default function Home() {
 
 			if (page === 1) {
 				setIsLoading(true)
-			} else {
-				setIsLoadingMore(true)
 			}
 			setError(null)
 
@@ -76,43 +103,37 @@ export default function Home() {
 					setDocuments(data.documents)
 				}
 
-				setCurrentPage(data.pagination.currentPage)
-				setHasMore(data.pagination.currentPage < data.pagination.totalPages)
 				setShowGraph(true)
+				setMockData(null)
+				setStressTestCount(0)
 			} catch (err) {
 				setError(err instanceof Error ? err : new Error("Unknown error"))
 			} finally {
 				setIsLoading(false)
-				setIsLoadingMore(false)
 			}
 		},
 		[apiKey],
 	)
 
-	const loadMoreDocuments = useCallback(async () => {
-		if (hasMore && !isLoadingMore) {
-			await fetchDocuments(currentPage + 1, true)
-		}
-	}, [hasMore, isLoadingMore, currentPage, fetchDocuments])
-
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault()
 		if (apiKey) {
 			setDocuments([])
-			setCurrentPage(0)
-			setSelectedSpace("all")
 			fetchDocuments(1)
 		}
 	}
 
-	// Handle space change
-	const handleSpaceChange = useCallback((spaceId: string) => {
-		setSelectedSpace(spaceId)
-	}, [])
-
-	// Reset to defaults
-	const handleReset = () => {
-		setSelectedSpace("all")
+	const handleStressTest = (count: number) => {
+		const data = generateMockGraphData({
+			documentCount: count,
+			memoriesPerDoc: [2, 5],
+			seed: 12345,
+		})
+		setMockData({ documents: data.documents })
+		setDocuments([])
+		setStressTestCount(count)
+		setShowGraph(true)
+		setError(null)
 	}
 
 	// Toggle slideshow
@@ -122,15 +143,21 @@ export default function Home() {
 
 	// Handle slideshow node change
 	const handleSlideshowNodeChange = useCallback((nodeId: string | null) => {
-		// Track which node is being shown in slideshow
-		setCurrentSlideshowNode(nodeId)
 		console.log("Slideshow showing node:", nodeId)
 	}, [])
 
-	// Handle slideshow stop (when user clicks outside)
+	// Handle slideshow stop
 	const handleSlideshowStop = useCallback(() => {
 		setIsSlideshowActive(false)
 	}, [])
+
+	// Convert real documents to graph format
+	const graphDocuments = useMemo(() => {
+		if (mockData) return mockData.documents
+		return toGraphDocuments(documents)
+	}, [documents, mockData])
+
+	const displayCount = mockData ? stressTestCount : documents.length
 
 	return (
 		<div className="flex flex-col h-screen bg-zinc-950">
@@ -165,68 +192,65 @@ export default function Home() {
 				</div>
 			</header>
 
-			{/* State Display Panel - For Testing */}
-			{showGraph && (
-				<div className="shrink-0 border-b border-zinc-800 bg-zinc-900/50 px-6 py-3">
-					<div className="flex items-center justify-between text-sm">
-						<div className="flex items-center gap-6">
-							<div className="flex items-center gap-2">
-								<span className="text-zinc-400">Selected Space:</span>
-								<span className="font-mono text-blue-400">{selectedSpace}</span>
-							</div>
-							<div className="flex items-center gap-2">
-								<span className="text-zinc-400">Documents:</span>
-								<span className="font-mono text-emerald-400">
-									{documents.length}
-								</span>
-							</div>
+			{/* Controls Panel */}
+			<div className="shrink-0 border-b border-zinc-800 bg-zinc-900/50 px-6 py-3">
+				<div className="flex items-center justify-between text-sm">
+					<div className="flex items-center gap-6">
+						<div className="flex items-center gap-2">
+							<span className="text-zinc-400">Documents:</span>
+							<span className="font-mono text-emerald-400">{displayCount}</span>
 						</div>
-						<div className="flex items-center gap-3">
+						{stressTestCount > 0 && (
+							<span className="rounded bg-amber-900/50 px-2 py-0.5 text-xs text-amber-400">
+								Stress Test Mode
+							</span>
+						)}
+					</div>
+					<div className="flex items-center gap-3">
+						{/* Stress test buttons */}
+						<span className="text-zinc-500 text-xs">Stress Test:</span>
+						{[50, 100, 200, 500].map((count) => (
 							<button
-								onClick={handleToggleSlideshow}
-								className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 ${
-									isSlideshowActive
-										? "bg-blue-600 text-white hover:bg-blue-700"
+								key={count}
+								type="button"
+								onClick={() => handleStressTest(count)}
+								className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+									stressTestCount === count
+										? "bg-amber-600 text-white"
 										: "border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
 								}`}
 							>
-								{isSlideshowActive ? (
-									<>
-										<svg
-											width="12"
-											height="12"
-											viewBox="0 0 24 24"
-											fill="currentColor"
-										>
-											<rect x="6" y="6" width="12" height="12" />
-										</svg>
-										Slideshow
-									</>
-								) : (
-									<>
-										<svg
-											width="12"
-											height="12"
-											viewBox="0 0 24 24"
-											fill="currentColor"
-										>
-											<path d="M8 5v14l11-7z" />
-										</svg>
-										Slideshow
-									</>
-								)}
+								{count} docs
 							</button>
-							<div className="h-6 w-px bg-zinc-700" />
-							<button
-								onClick={handleReset}
-								className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-800"
+						))}
+						<div className="h-6 w-px bg-zinc-700" />
+						<button
+							type="button"
+							onClick={handleToggleSlideshow}
+							className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 ${
+								isSlideshowActive
+									? "bg-blue-600 text-white hover:bg-blue-700"
+									: "border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+							}`}
+						>
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="currentColor"
+								aria-hidden="true"
 							>
-								Reset Filters
-							</button>
-						</div>
+								{isSlideshowActive ? (
+									<rect x="6" y="6" width="12" height="12" />
+								) : (
+									<path d="M8 5v14l11-7z" />
+								)}
+							</svg>
+							Slideshow
+						</button>
 					</div>
 				</div>
-			)}
+			</div>
 
 			{/* Main content */}
 			<main className="flex-1 overflow-hidden">
@@ -239,6 +263,7 @@ export default function Home() {
 									fill="none"
 									viewBox="0 0 24 24"
 									stroke="currentColor"
+									aria-hidden="true"
 								>
 									<path
 										strokeLinecap="round"
@@ -252,21 +277,20 @@ export default function Home() {
 								Get Started
 							</h2>
 							<p className="mb-6 text-zinc-400">
-								Enter your Supermemory API key above to visualize your memory
-								graph.
+								Enter your API key above, or click a stress test button to
+								generate mock data.
 							</p>
 							<div className="text-left text-sm text-zinc-500">
 								<p className="mb-2 font-medium text-zinc-400">
 									Features to test:
 								</p>
 								<ul className="list-inside list-disc space-y-1">
-									<li>✨ Search and filter by spaces</li>
-									<li>✨ Arrow key navigation in spaces dropdown</li>
 									<li>Pan and zoom the graph</li>
 									<li>Click on nodes to see details</li>
 									<li>Drag nodes around</li>
-									<li>Filter by space</li>
-									<li>Pagination loads more documents</li>
+									<li>Arrow key navigation</li>
+									<li>Stress test with 50-500 documents</li>
+									<li>FPS counter (shown during stress tests)</li>
 								</ul>
 							</div>
 						</div>
@@ -274,20 +298,12 @@ export default function Home() {
 				) : (
 					<div className="h-full w-full">
 						<MemoryGraph
-							documents={documents}
+							documents={graphDocuments}
 							isLoading={isLoading}
-							isLoadingMore={isLoadingMore}
 							error={error}
-							hasMore={hasMore}
-							loadMoreDocuments={loadMoreDocuments}
-							totalLoaded={documents.length}
 							variant="consumer"
-							// Controlled space selection
-							selectedSpace={selectedSpace}
-							onSpaceChange={handleSpaceChange}
-							// Node limit - prevents performance issues with large graphs
-							maxNodes={500}
-							// Slideshow control
+							maxNodes={1000}
+							showFps={stressTestCount > 0}
 							isSlideshowActive={isSlideshowActive}
 							onSlideshowNodeChange={handleSlideshowNodeChange}
 							onSlideshowStop={handleSlideshowStop}

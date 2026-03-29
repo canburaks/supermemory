@@ -106,7 +106,8 @@
     "vaul": "^1.1.2",
     "zustand": "^5.0.7",
     "@repo/lib": "workspace:*",
-    "@repo/validation": "workspace:*"
+    "@repo/validation": "workspace:*",
+    "@supermemory/memory-graph": "workspace:*"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.2",

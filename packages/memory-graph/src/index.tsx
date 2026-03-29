@@ -1,25 +1,39 @@
-// Export the main component
+// Components
 export { MemoryGraph } from "./components/memory-graph"
+export { GraphCanvas } from "./components/graph-canvas"
 
-// Export style injector for manual use if needed
-export { injectStyles } from "./lib/inject-styles"
+// Hooks
+export { useGraphData } from "./hooks/use-graph-data"
+export { useGraphTheme } from "./hooks/use-graph-theme"
 
-// Export types for consumers
-export type { MemoryGraphProps } from "./types"
+// Engine classes (for advanced usage)
+export { ForceSimulation } from "./canvas/simulation"
+export { ViewportState } from "./canvas/viewport"
+export { SpatialIndex } from "./canvas/hit-test"
+export { VersionChainIndex } from "./canvas/version-chain"
 
+// Constants
+export { DEFAULT_COLORS, FORCE_CONFIG, GRAPH_SETTINGS } from "./constants"
+
+// Types
+export type {
+	MemoryGraphProps,
+	GraphNode,
+	GraphEdge,
+	GraphThemeColors,
+	GraphCanvasProps,
+	GraphApiDocument,
+	GraphApiMemory,
+	GraphApiEdge,
+	DocumentNodeData,
+	MemoryNodeData,
+	ChainEntry,
+} from "./types"
+
+// Backward-compatible API types
 export type {
 	DocumentWithMemories,
 	MemoryEntry,
 	DocumentsResponse,
-} from "./api-types"
-
-export type {
-	GraphNode,
-	GraphEdge,
 	MemoryRelation,
-} from "./types"
-
-// Export theme system for custom theming
-export { themeContract, defaultTheme } from "./styles/theme.css"
-export { sprinkles } from "./styles/sprinkles.css"
-export type { Sprinkles } from "./styles/sprinkles.css"
+} from "./api-types"

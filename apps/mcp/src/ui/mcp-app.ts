@@ -27,13 +27,18 @@ interface GraphApiMemory {
 	id: string
 	memory: string
 	isStatic: boolean
+	spaceId: string
 	isLatest: boolean
 	isForgotten: boolean
 	forgetAfter: string | null
+	forgetReason: string | null
 	version: number
 	parentMemoryId: string | null
+	rootMemoryId: string | null
 	createdAt: string
 	updatedAt: string
+	relation?: "updates" | "extends" | "derives" | null
+	memoryRelations?: Record<string, "updates" | "extends" | "derives"> | null
 }
 
 interface GraphApiDocument {
@@ -43,22 +48,12 @@ interface GraphApiDocument {
 	documentType: string
 	createdAt: string
 	updatedAt: string
-	x: number
-	y: number
 	memories: GraphApiMemory[]
-}
-
-interface GraphApiEdge {
-	source: string
-	target: string
-	similarity: number
 }
 
 interface ToolResultData {
 	containerTag?: string
-	bounds: { minX: number; maxX: number; minY: number; maxY: number } | null
 	documents: GraphApiDocument[]
-	edges: GraphApiEdge[]
 	totalCount: number
 }
 
@@ -91,8 +86,7 @@ type GraphNode = MemoryNode | DocumentNode
 interface GraphLink extends LinkObject {
 	source: string | GraphNode
 	target: string | GraphNode
-	edgeType: "doc-memory" | "version" | "similarity"
-	similarity?: number
+	edgeType: "derives" | "updates" | "extends"
 }
 
 // =============================================================================
@@ -107,14 +101,14 @@ const MEMORY_BORDER = {
 
 const EDGE_COLORS = {
 	dark: {
-		"doc-memory": "#4A5568",
-		version: "#8B5CF6",
-		similarity: "#00D4B8",
+		derives: "#38BDF8",
+		updates: "#A78BFA",
+		extends: "#2DD4BF",
 	},
 	light: {
-		"doc-memory": "#A0AEC0",
-		version: "#8B5CF6",
-		similarity: "#0D9488",
+		derives: "#7DD3FC",
+		updates: "#A78BFA",
+		extends: "#5EEAD4",
 	},
 }
 
@@ -157,33 +151,20 @@ function getMemoryBorderColor(mem: GraphApiMemory): string {
 	return MEMORY_BORDER.default
 }
 
-function normalizeDocCoordinates(
-	documents: GraphApiDocument[],
-): GraphApiDocument[] {
-	if (documents.length <= 1) return documents
-
-	let minX = Number.POSITIVE_INFINITY
-	let maxX = Number.NEGATIVE_INFINITY
-	let minY = Number.POSITIVE_INFINITY
-	let maxY = Number.NEGATIVE_INFINITY
-	for (const doc of documents) {
-		minX = Math.min(minX, doc.x)
-		maxX = Math.max(maxX, doc.x)
-		minY = Math.min(minY, doc.y)
-		maxY = Math.max(maxY, doc.y)
+/** Simple hash to get deterministic initial positions from doc ID */
+function hashCode(s: string): number {
+	let h = 0
+	for (let i = 0; i < s.length; i++) {
+		h = (Math.imul(31, h) + s.charCodeAt(i)) | 0
 	}
+	return h
+}
 
-	const rangeX = maxX - minX || 1
-	const rangeY = maxY - minY || 1
-	// Small spread so documents start near each other.
-	// The force simulation will naturally separate them.
-	const SPREAD = 50
-
-	return documents.map((doc) => ({
-		...doc,
-		x: ((doc.x - minX) / rangeX - 0.5) * SPREAD,
-		y: ((doc.y - minY) / rangeY - 0.5) * SPREAD,
-	}))
+function initialPosition(id: string, spread: number): { x: number; y: number } {
+	const h = hashCode(id)
+	const angle = ((h & 0xffff) / 0xffff) * Math.PI * 2
+	const radius = (((h >>> 16) & 0xffff) / 0xffff) * spread
+	return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }
 }
 
 function transformData(data: ToolResultData): {
@@ -192,11 +173,18 @@ function transformData(data: ToolResultData): {
 } {
 	const nodes: GraphNode[] = []
 	const links: GraphLink[] = []
+	const SPREAD = 50
+
+	// Pre-populate all node IDs so edge targets are always resolvable
+	// regardless of iteration order.
 	const nodeIds = new Set<string>()
+	for (const doc of data.documents) {
+		nodeIds.add(doc.id)
+		for (const mem of doc.memories) nodeIds.add(mem.id)
+	}
 
-	const normalizedDocs = normalizeDocCoordinates(data.documents)
-
-	for (const doc of normalizedDocs) {
+	for (const doc of data.documents) {
+		const pos = initialPosition(doc.id, SPREAD)
 		nodes.push({
 			id: doc.id,
 			nodeType: "document",
@@ -205,10 +193,9 @@ function transformData(data: ToolResultData): {
 			docType: doc.documentType,
 			createdAt: doc.createdAt,
 			memoryCount: doc.memories.length,
-			x: doc.x,
-			y: doc.y,
+			x: pos.x,
+			y: pos.y,
 		} as DocumentNode)
-		nodeIds.add(doc.id)
 
 		const memCount = doc.memories.length
 		for (let i = 0; i < memCount; i++) {
@@ -227,34 +214,38 @@ function transformData(data: ToolResultData): {
 				parentMemoryId: mem.parentMemoryId,
 				createdAt: mem.createdAt,
 				borderColor: getMemoryBorderColor(mem),
-				x: doc.x + Math.cos(angle) * CLUSTER_SPREAD,
-				y: doc.y + Math.sin(angle) * CLUSTER_SPREAD,
+				x: pos.x + Math.cos(angle) * CLUSTER_SPREAD,
+				y: pos.y + Math.sin(angle) * CLUSTER_SPREAD,
 			} as MemoryNode)
-			nodeIds.add(mem.id)
 
-			// Doc-memory link
-			links.push({ source: doc.id, target: mem.id, edgeType: "doc-memory" })
+			// Derives link (doc -> memory)
+			links.push({ source: doc.id, target: mem.id, edgeType: "derives" })
 
-			// Version chain link
-			if (mem.parentMemoryId && nodeIds.has(mem.parentMemoryId)) {
-				links.push({
-					source: mem.parentMemoryId,
-					target: mem.id,
-					edgeType: "version",
-				})
+			// Memory-to-memory relation edges from backend data.
+			// Uses memoryRelations as primary source, falls back to parentMemoryId.
+			// Keep in sync with packages/memory-graph/src/hooks/use-graph-data.ts
+			let relations: Record<string, string> = {}
+			if (
+				// Defensive: data comes from structuredContent cast, may be unexpected type
+				mem.memoryRelations &&
+				typeof mem.memoryRelations === "object" &&
+				Object.keys(mem.memoryRelations).length > 0
+			) {
+				relations = mem.memoryRelations
+			} else if (mem.parentMemoryId) {
+				relations = { [mem.parentMemoryId]: "updates" }
 			}
-		}
-	}
 
-	// Similarity edges from API
-	for (const edge of data.edges) {
-		if (nodeIds.has(edge.source) && nodeIds.has(edge.target)) {
-			links.push({
-				source: edge.source,
-				target: edge.target,
-				edgeType: "similarity",
-				similarity: edge.similarity,
-			})
+			for (const [targetId, relationType] of Object.entries(relations)) {
+				if (!nodeIds.has(targetId)) continue
+				const edgeType =
+					relationType === "updates" ||
+					relationType === "extends" ||
+					relationType === "derives"
+						? relationType
+						: "updates"
+				links.push({ source: targetId, target: mem.id, edgeType })
+			}
 		}
 	}
 
@@ -317,7 +308,7 @@ function drawDocumentNode(
 // =============================================================================
 function getLinkColor(link: GraphLink): string {
 	const palette = isDark ? EDGE_COLORS.dark : EDGE_COLORS.light
-	return palette[link.edgeType] || palette["doc-memory"]
+	return palette[link.edgeType] || palette["derives"]
 }
 
 const graph = new ForceGraph<GraphNode, GraphLink>(container)
@@ -370,18 +361,17 @@ const graph = new ForceGraph<GraphNode, GraphLink>(container)
 		},
 	)
 	.linkWidth((link: GraphLink) => {
-		if (link.edgeType === "version") return 2
-		if (link.edgeType === "similarity")
-			return 0.5 + (link.similarity || 0) * 1.5
+		if (link.edgeType === "updates") return 2
+		if (link.edgeType === "extends") return 0.5
 		return 1
 	})
 	.linkColor(getLinkColor)
 	.linkLineDash((link: GraphLink) => {
-		if (link.edgeType === "similarity") return [4, 2]
+		if (link.edgeType === "extends") return [4, 2]
 		return null as unknown as number[]
 	})
 	.linkDirectionalArrowLength((link: GraphLink) =>
-		link.edgeType === "version" ? 4 : 0,
+		link.edgeType === "updates" ? 4 : 0,
 	)
 	.linkDirectionalArrowRelPos(1)
 	.onNodeClick(handleNodeClick)
@@ -395,11 +385,11 @@ const graph = new ForceGraph<GraphNode, GraphLink>(container)
 	.d3Force(
 		"link",
 		forceLink()
-			.distance((l: GraphLink) => (l.edgeType === "doc-memory" ? 40 : 80))
+			.distance((l: GraphLink) => (l.edgeType === "derives" ? 40 : 80))
 			.strength((l: GraphLink) => {
-				if (l.edgeType === "doc-memory") return 0.8
-				if (l.edgeType === "version") return 1.0
-				return (l.similarity || 0.3) * 0.3
+				if (l.edgeType === "derives") return 0.8
+				if (l.edgeType === "updates") return 1.0
+				return 0.15 // extends
 			}),
 	)
 	.d3Force("collide", forceCollide(18))

@@ -3,7 +3,7 @@
 import { memo, useCallback, useRef } from "react"
 import { useQueryState } from "nuqs"
 import Image from "next/image"
-import { MemoryGraph } from "./memory-graph/memory-graph"
+import { MemoryGraph } from "./memory-graph"
 import { useProject } from "@/stores"
 import { useGraphHighlights } from "@/stores/highlights"
 import { Button } from "@ui/components/button"

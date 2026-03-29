@@ -1,33 +1,18 @@
-// Memory Graph components
-export { MemoryGraph } from "./memory-graph"
-export type { MemoryGraphProps } from "./memory-graph"
+// Re-export the wrapper as MemoryGraph (same name, drop-in replacement)
+export { MemoryGraph } from "./memory-graph-wrapper"
+export type { MemoryGraphWrapperProps as MemoryGraphProps } from "./memory-graph-wrapper"
+
+// Keep GraphCard (app-specific)
 export { GraphCard } from "./graph-card"
 export type { GraphCardProps } from "./graph-card"
 
-// Hooks
-export { useGraphApi } from "./hooks/use-graph-api"
-export {
-	useGraphData,
-	calculateBackendViewport,
-	screenToBackendCoords,
-} from "./hooks/use-graph-data"
-
-// Canvas engine
-export { ViewportState } from "./canvas/viewport"
-export { ForceSimulation } from "./canvas/simulation"
-
-// Types
+// Re-export useful types from the package
 export type {
 	GraphNode,
 	GraphEdge,
 	GraphApiDocument,
 	GraphApiMemory,
-	GraphApiEdge,
-	GraphViewportResponse,
-	GraphBoundsResponse,
-	GraphStatsResponse,
-	DocumentNodeData,
-	MemoryNodeData,
-	DocumentWithMemories,
-	MemoryEntry,
-} from "./types"
+} from "@supermemory/memory-graph"
+
+// Keep the API hook export
+export { useGraphApi } from "./hooks/use-graph-api"

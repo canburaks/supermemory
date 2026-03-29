@@ -1,37 +1,27 @@
 {
   "name": "@supermemory/memory-graph",
-  "version": "0.1.8",
+  "version": "0.2.0",
   "description": "Interactive graph visualization component for Supermemory - visualize and explore your memory connections",
   "type": "module",
-  "main": "./dist/memory-graph.cjs",
-  "module": "./dist/memory-graph.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.tsx",
+  "module": "./src/index.tsx",
+  "types": "./src/index.tsx",
   "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/memory-graph.js"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/memory-graph.cjs"
-      }
-    },
-    "./styles.css": "./dist/memory-graph.css",
+    ".": "./src/index.tsx",
+    "./mock-data": "./src/mock-data.ts",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "README.md"
   ],
-  "sideEffects": [
-    "**/*.css"
-  ],
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build && tsc --emitDeclarationOnly",
     "check-types": "tsc --noEmit",
-    "prepublishOnly": "bun run build"
+    "prepack": "bun run build && bun run scripts/swap-exports.ts pack",
+    "postpack": "bun run scripts/swap-exports.ts unpack",
+    "test": "vitest run"
   },
   "keywords": [
     "supermemory",
@@ -59,23 +49,15 @@
     "react-dom": ">=18.0.0"
   },
   "dependencies": {
-    "@emotion/is-prop-valid": "^1.4.0",
-    "@radix-ui/react-collapsible": "^1.1.12",
-    "@radix-ui/react-slot": "^1.2.4",
-    "@vanilla-extract/css": "^1.17.4",
-    "@vanilla-extract/recipes": "^0.5.7",
-    "@vanilla-extract/sprinkles": "^1.6.5",
-    "d3-force": "^3.0.0",
-    "lucide-react": "^0.552.0",
-    "motion": "^12.23.24"
+    "d3-force": "^3.0.0"
   },
   "devDependencies": {
     "@types/d3-force": "^3.0.10",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
-    "@vanilla-extract/vite-plugin": "^5.1.1",
     "@vitejs/plugin-react": "^5.1.0",
     "typescript": "^5.9.3",
-    "vite": "^7.2.1"
+    "vite": "^7.2.1",
+    "vitest": "^3.2.4"
   }
 }

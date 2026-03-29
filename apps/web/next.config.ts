@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
 		ignoreBuildErrors: true,
 	},
 	transpilePackages: [
+		"@supermemory/memory-graph",
 		"@tiptap/core",
 		"@tiptap/react",
 		"@tiptap/pm",
