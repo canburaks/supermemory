@@ -462,14 +462,14 @@ export function LoginPage({
 						<span className="inline-block">
 							<a
 								className="text-foreground hover:underline"
-								href="https://supermemory.ai/terms-of-service"
+								href="https://supermemory.ai/terms/"
 							>
 								Terms
 							</a>{" "}
 							and{" "}
 							<a
 								className="text-foreground hover:underline"
-								href="https://supermemory.ai/privacy-policy"
+								href="https://supermemory.ai/privacy/"
 							>
 								Privacy Policy
 							</a>
