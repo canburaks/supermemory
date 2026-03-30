@@ -100,6 +100,7 @@ interface NovaEmptyStateProps {
 	) => void
 	isAllSpaces: boolean
 	spaceName?: string
+	onSwitchToAllSpaces?: () => void
 }
 
 interface MemoriesGridProps {
@@ -512,6 +513,7 @@ export function MemoriesGrid({
 					onOpenIntegrations={emptyStateProps.onOpenIntegrations}
 					isAllSpaces={emptyStateProps.isAllSpaces}
 					spaceName={emptyStateProps.spaceName}
+					onSwitchToAllSpaces={emptyStateProps.onSwitchToAllSpaces}
 				/>
 			) : isEmpty ? (
 				<div className="h-full flex items-center justify-center p-4">

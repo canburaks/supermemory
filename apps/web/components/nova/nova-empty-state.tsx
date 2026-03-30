@@ -15,6 +15,7 @@ interface NovaEmptyStateProps {
 	) => void
 	isAllSpaces: boolean
 	spaceName?: string
+	onSwitchToAllSpaces?: () => void
 }
 
 const cardClass = cn(
@@ -28,19 +29,13 @@ export function NovaEmptyState({
 	onOpenIntegrations,
 	isAllSpaces,
 	spaceName,
+	onSwitchToAllSpaces,
 }: NovaEmptyStateProps) {
 	const handleInstallChrome = () => {
 		window.open(CHROME_EXTENSION_URL, "_blank", "noopener,noreferrer")
 	}
 
-	const title = isAllSpaces
-		? "Help Nova get to know you"
-		: "This space is empty"
-	const subtitle = isAllSpaces
-		? "Add your first memory to get started."
-		: spaceName
-			? `Add memories to ${spaceName} to get started.`
-			: "Add memories to this space to get started."
+	const showSingleSpaceEmpty = !isAllSpaces && onSwitchToAllSpaces
 
 	return (
 		<div
@@ -49,17 +44,81 @@ export function NovaEmptyState({
 		>
 			<div className="max-w-xl w-full flex flex-col items-center text-center">
 				<NovaOrb size={80} className="blur-[2px]! mb-4" />
-				<h2
-					className={cn(
-						"text-white text-xl md:text-2xl font-medium mb-2",
-						dmSansClassName(),
-					)}
-				>
-					{title}
-				</h2>
-				<p className={cn("text-[#8B8B8B] text-sm mb-6", dmSansClassName())}>
-					{subtitle}
-				</p>
+				{isAllSpaces ? (
+					<>
+						<h2
+							className={cn(
+								"text-white text-xl md:text-2xl font-medium mb-2",
+								dmSansClassName(),
+							)}
+						>
+							Help Nova get to know you
+						</h2>
+						<p className={cn("text-[#8B8B8B] text-sm mb-6", dmSansClassName())}>
+							Add your first memory to get started.
+						</p>
+					</>
+				) : showSingleSpaceEmpty ? (
+					<>
+						<h2
+							className={cn(
+								"text-white text-xl md:text-2xl font-medium mb-2",
+								dmSansClassName(),
+							)}
+						>
+							{spaceName ? (
+								<>
+									<span className="text-[#fafafa] font-medium">
+										"{spaceName}"
+									</span>{" "}
+									is empty
+								</>
+							) : (
+								"This space is empty"
+							)}
+						</h2>
+						<p className={cn("text-[#8B8B8B] text-sm mb-3", dmSansClassName())}>
+							Your memories may be in another space.
+						</p>
+						<button
+							id="nova-empty-view-all-spaces"
+							type="button"
+							onClick={onSwitchToAllSpaces}
+							className={cn(
+								"text-[#4BA0FA] text-sm font-medium flex items-center gap-1 mb-6",
+								"hover:text-[#6BB0FF] transition-colors",
+								dmSansClassName(),
+							)}
+						>
+							View all spaces
+							<ArrowRight className="size-3.5" />
+						</button>
+					</>
+				) : (
+					<>
+						<h2
+							className={cn(
+								"text-white text-xl md:text-2xl font-medium mb-2",
+								dmSansClassName(),
+							)}
+						>
+							This space is empty
+						</h2>
+						<p className={cn("text-[#8B8B8B] text-sm mb-6", dmSansClassName())}>
+							{spaceName ? (
+								<>
+									Add memories to{" "}
+									<span className="text-[#fafafa] font-medium">
+										"{spaceName}"
+									</span>{" "}
+									to get started.
+								</>
+							) : (
+								"Add memories to this space to get started."
+							)}
+						</p>
+					</>
+				)}
 
 				<div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full mb-4">
 					<button

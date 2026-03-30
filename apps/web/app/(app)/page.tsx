@@ -66,8 +66,13 @@ function ViewErrorFallback() {
 export default function NewPage() {
 	const isMobile = useIsMobile()
 	const { user, session } = useAuth()
-	const { selectedProject, isNovaSpaces, novaContainerTags, selectedProjects } =
-		useProject()
+	const {
+		selectedProject,
+		isNovaSpaces,
+		novaContainerTags,
+		selectedProjects,
+		setSelectedProjects,
+	} = useProject()
 	const selectedProjectTag = selectedProjects[0]
 	const isNovaContext =
 		isNovaSpaces ||
@@ -81,6 +86,12 @@ export default function NewPage() {
 				: (allProjects.find((p) => p.containerTag === selectedProjectTag)
 						?.name ?? selectedProjectTag)
 			: undefined
+
+	const handleSwitchToAllSpacesFromEmptyState = useCallback(() => {
+		analytics.spaceSwitched({ space_id: "nova_spaces" })
+		setSelectedProjects([])
+	}, [setSelectedProjects])
+
 	const { viewMode, setViewMode } = useViewMode()
 	const queryClient = useQueryClient()
 
@@ -466,6 +477,9 @@ export default function NewPage() {
 														onOpenIntegrations: handleOpenIntegrations,
 														isAllSpaces: isNovaSpaces,
 														spaceName: emptyStateSpaceName,
+														onSwitchToAllSpaces: isNovaSpaces
+															? undefined
+															: handleSwitchToAllSpacesFromEmptyState,
 													}
 												: undefined
 										}
