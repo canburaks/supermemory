@@ -1,6 +1,5 @@
-import { tool } from "ai"
+import { jsonSchema, tool } from "ai"
 import Supermemory from "supermemory"
-import { z } from "zod"
 
 /**
  * Supermemory configuration
@@ -10,6 +9,16 @@ export interface SupermemoryToolsConfig {
 	baseUrl?: string
 	containerTags?: string[]
 	projectId?: string
+}
+
+type SearchMemoriesInput = {
+	informationToGet: string
+	includeFullDocs: boolean
+	limit: number
+}
+
+type AddMemoryInput = {
+	memory: string
 }
 
 /**
@@ -31,22 +40,26 @@ export function supermemoryTools(
 	const searchMemories = tool({
 		description:
 			"Search (recall) memories/details/information about the user or other facts or entities. Run when explicitly asked or when context about user's past choices would be helpful.",
-		inputSchema: z.object({
-			informationToGet: z
-				.string()
-				.describe("Terms to search for in the user's memories"),
-			includeFullDocs: z
-				.boolean()
-				.optional()
-				.default(true)
-				.describe(
-					"Whether to include the full document content in the response. Defaults to true for better AI context.",
-				),
-			limit: z
-				.number()
-				.optional()
-				.default(10)
-				.describe("Maximum number of results to return"),
+		inputSchema: jsonSchema<SearchMemoriesInput>({
+			type: "object",
+			properties: {
+				informationToGet: {
+					type: "string",
+					description: "Terms to search for in the user's memories",
+				},
+				includeFullDocs: {
+					type: "boolean",
+					description:
+						"Whether to include the full document content in the response. Defaults to true for better AI context.",
+					default: true,
+				},
+				limit: {
+					type: "number",
+					description: "Maximum number of results to return",
+					default: 10,
+				},
+			},
+			required: ["informationToGet"],
 		}),
 		execute: async ({
 			informationToGet,
@@ -79,12 +92,16 @@ export function supermemoryTools(
 	const addMemory = tool({
 		description:
 			"Add (remember) memories/details/information about the user or other facts or entities. Run when explicitly asked or when the user mentions any information generalizable beyond the context of the current conversation.",
-		inputSchema: z.object({
-			memory: z
-				.string()
-				.describe(
-					"The text content of the memory to add. This should be a single sentence or a short paragraph.",
-				),
+		inputSchema: jsonSchema<AddMemoryInput>({
+			type: "object",
+			properties: {
+				memory: {
+					type: "string",
+					description:
+						"The text content of the memory to add. This should be a single sentence or a short paragraph.",
+				},
+			},
+			required: ["memory"],
 		}),
 		execute: async ({ memory }) => {
 			try {

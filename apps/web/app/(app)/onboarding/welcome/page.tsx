@@ -39,7 +39,7 @@ function generateOrgSlug(name: string) {
 }
 
 function generateUsername(name: string) {
-	const base = generateSlugFromName(name.trim())
+	const base = generateSlugFromName(name.trim()).replace(/-/g, "_")
 	const randomNum = Math.floor(100000 + Math.random() * 900000)
 	return `${base}${randomNum}`
 }
