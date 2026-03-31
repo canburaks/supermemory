@@ -24,6 +24,7 @@ interface AuthContextType {
 	org: Organization | null
 	organizations: OrganizationListItem[] | null
 	isRestoring: boolean
+	isSessionPending: boolean
 	setActiveOrg: (orgSlug: string) => Promise<void>
 	updateOrgMetadata: (partial: Record<string, unknown>) => void
 	refetchOrganizations: () => Promise<unknown>
@@ -32,7 +33,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-	const { data: session } = useSession()
+	const { data: session, isPending: isSessionPending } = useSession()
 	const [org, setOrg] = useState<Organization | null>(null)
 	const [isRestoring, setIsRestoring] = useState(true)
 	const {
@@ -73,6 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	}, [])
 
 	useEffect(() => {
+		if (isSessionPending) {
+			return
+		}
+
 		if (!session?.session) {
 			setIsRestoring(false)
 			setOrg(null)
@@ -145,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		return () => {
 			cancelled = true
 		}
-	}, [session, orgsData, orgsPending, setActiveOrg])
+	}, [session, isSessionPending, orgsData, orgsPending, setActiveOrg])
 
 	useEffect(() => {
 		if (typeof window === "undefined") return
@@ -181,6 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				org,
 				organizations,
 				isRestoring,
+				isSessionPending,
 				session: session?.session ?? null,
 				user: session?.user ?? null,
 				setActiveOrg,

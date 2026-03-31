@@ -9,7 +9,6 @@ import { useQueryState } from "nuqs"
 import type { z } from "zod"
 import { Masonry, useInfiniteLoader } from "masonic"
 import { dmSansClassName } from "@/lib/fonts"
-import { SuperLoader } from "@/components/superloader"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { cn } from "@lib/utils"
 import { useProject } from "@/stores"
@@ -42,7 +41,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@ui/components/alert-dialog"
-import { CheckIcon, Trash2Icon, XIcon } from "lucide-react"
+import { CheckIcon, Loader, Trash2Icon, XIcon } from "lucide-react"
 
 // Document category type
 type DocumentCategory =
@@ -76,6 +75,55 @@ type OgData = {
 
 const PAGE_SIZE = 100
 const MAX_TOTAL = 1000
+
+const MEMORIES_LOADING_LABELS = [
+	"Getting your supermemories…",
+	"Fetching your documents…",
+	"Warming up Nova…",
+	"Almost there…",
+] as const
+
+function useRotatingLoadingLabel(
+	labels: readonly string[],
+	intervalMs = 2400,
+): string {
+	const [index, setIndex] = useState(0)
+
+	useEffect(() => {
+		const id = window.setInterval(() => {
+			setIndex((i) => (i + 1) % labels.length)
+		}, intervalMs)
+		return () => window.clearInterval(id)
+	}, [labels.length, intervalMs])
+
+	const label = labels.at(index) ?? labels.at(0)
+	return label ?? "Loading…"
+}
+
+function MemoriesGridLoading() {
+	const label = useRotatingLoadingLabel(MEMORIES_LOADING_LABELS)
+	return (
+		<output
+			aria-label={label}
+			className="h-full min-h-[min(50dvh,360px)] w-full flex items-center justify-center gap-4 px-8 py-20"
+			aria-live="polite"
+		>
+			<Loader
+				className={cn("shrink-0 animate-spin text-sky-400")}
+				aria-hidden
+				strokeWidth={2}
+			/>
+			<p
+				className={cn(
+					dmSansClassName(),
+					"text-center text-base text-[#A3A3A3] max-w-md leading-relaxed",
+				)}
+			>
+				{label}
+			</p>
+		</output>
+	)
+}
 
 // Discriminated union for masonry items
 type MasonryItem = { type: "document"; id: string; data: DocumentWithMemories }
@@ -135,7 +183,7 @@ export function MemoriesGrid({
 	emptyStateProps,
 }: MemoriesGridProps) {
 	const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
-	const { user } = useAuth()
+	const { user, isSessionPending } = useAuth()
 	const { effectiveContainerTags } = useProject()
 	const isMobile = useIsMobile()
 	const [selectedCategories, setSelectedCategories] = useQueryState(
@@ -343,6 +391,10 @@ export function MemoriesGrid({
 		[handleCardClick, isSelectionMode, selectedDocumentIds, onToggleSelection],
 	)
 
+	if (isSessionPending) {
+		return <MemoriesGridLoading />
+	}
+
 	if (!user) {
 		return (
 			<div className="flex items-center justify-center h-full">
@@ -504,9 +556,7 @@ export function MemoriesGrid({
 					</div>
 				</div>
 			) : isPending ? (
-				<div className="h-full flex items-center justify-center p-4">
-					<SuperLoader />
-				</div>
+				<MemoriesGridLoading />
 			) : showNovaEmptyState ? (
 				<NovaEmptyState
 					onAddMemory={emptyStateProps.onAddMemory}
@@ -558,8 +608,8 @@ export function MemoriesGrid({
 					/>
 
 					{isLoadingMore && (
-						<div className="py-8 flex items-center justify-center">
-							<SuperLoader />
+						<div className="py-10 flex items-center justify-center">
+							<Loader className="size-10 animate-spin text-sky-400" />
 						</div>
 					)}
 				</div>

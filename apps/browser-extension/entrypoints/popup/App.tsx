@@ -845,11 +845,11 @@ function App() {
 					<div className="text-center py-2">
 						{authInvalidated ? (
 							<div className="mb-8">
-								<div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg">
-									<h2 className="m-0 mb-2 text-sm font-semibold text-red-800 leading-tight">
+								<div className="p-3 mb-4 rounded-lg border border-red-900/60 bg-red-950/40">
+									<h2 className="m-0 mb-2 text-sm font-semibold text-red-200 leading-tight">
 										Session Expired
 									</h2>
-									<p className="m-0 text-xs text-red-600 leading-tight">
+									<p className="m-0 text-xs text-red-300/90 leading-tight">
 										Logged out since authentication was invalidated. Please
 										login again.
 									</p>
@@ -857,18 +857,18 @@ function App() {
 							</div>
 						) : (
 							<div className="mb-8">
-								<h2 className="m-0 mb-4 text-sm font-normal leading-tight">
-									Login to unlock all chrome extension features
+								<h2 className="m-0 mb-4 text-sm font-medium leading-snug text-neutral-100">
+									Login to unlock all Chrome extension features
 								</h2>
 
 								<ul className="list-none p-0 m-0 text-left">
-									<li className="py-1.5 text-sm text-[#737373] relative pl-5 before:content-['•'] before:absolute before:left-0 before:text-[#737373] before:font-bold">
+									<li className="py-1.5 text-sm text-neutral-400 relative pl-5 before:content-['•'] before:absolute before:left-0 before:text-neutral-500 before:font-bold">
 										Save any page to your supermemory
 									</li>
-									<li className="py-1.5 text-sm text-[#737373] relative pl-5 before:content-['•'] before:absolute before:left-0 before:text-[#737373] before:font-bold">
+									<li className="py-1.5 text-sm text-neutral-400 relative pl-5 before:content-['•'] before:absolute before:left-0 before:text-neutral-500 before:font-bold">
 										Import all your Twitter / X Bookmarks
 									</li>
-									<li className="py-1.5 text-sm text-[#737373] relative pl-5 before:content-['•'] before:absolute before:left-0 before:text-[#737373] before:font-bold">
+									<li className="py-1.5 text-sm text-neutral-400 relative pl-5 before:content-['•'] before:absolute before:left-0 before:text-neutral-500 before:font-bold">
 										Import your ChatGPT Memories
 									</li>
 								</ul>
@@ -876,10 +876,10 @@ function App() {
 						)}
 
 						<div className="mt-8">
-							<p className="m-0 mb-4 text-sm text-[#737373]">
+							<p className="m-0 mb-4 text-sm text-neutral-400">
 								Having trouble logging in?{" "}
 								<button
-									className="bg-transparent border-none text-blue-500 cursor-pointer underline text-sm p-0 hover:text-blue-700"
+									className="bg-transparent border-none text-sky-400 cursor-pointer underline text-sm p-0 hover:text-sky-300"
 									onClick={() => {
 										window.open("mailto:support@supermemory.ai", "_blank")
 									}}
@@ -890,7 +890,7 @@ function App() {
 							</p>
 
 							<button
-								className="w-full py-3 px-6 bg-gray-700 text-white border-none rounded-3xl text-base font-medium cursor-pointer transition-colors duration-200 hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
+								className="w-full py-3 px-6 bg-[#2d3f5c] text-white border-none rounded-3xl text-base font-medium cursor-pointer transition-colors duration-200 hover:bg-[#3d5270] disabled:bg-neutral-600 disabled:cursor-not-allowed"
 								onClick={() => {
 									chrome.tabs.create({
 										url: import.meta.env.PROD
