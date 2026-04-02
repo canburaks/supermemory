@@ -14,6 +14,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { XIcon, Download, Copy, Check } from "lucide-react"
 import { GradientLogo } from "@ui/assets/Logo"
 import { useAuth } from "@lib/auth-context"
+import { useLocalStorageUsername } from "@hooks/use-local-storage-username"
 import { toast } from "sonner"
 import * as htmlToImage from "html-to-image"
 
@@ -32,6 +33,7 @@ const XIcon2 = ({ className }: { className?: string }) => (
 		viewBox="0 0 16 16"
 		fill="none"
 		xmlns="http://www.w3.org/2000/svg"
+		aria-hidden="true"
 	>
 		<path
 			d="M12.6 0.75H15.054L9.694 6.89L16 15.25H11.063L7.196 10.176L2.771 15.25H0.316L6.05 8.682L0 0.75H5.063L8.558 5.391L12.6 0.75ZM11.74 13.77H13.1L4.324 2.145H2.865L11.74 13.77Z"
@@ -47,6 +49,7 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
 		viewBox="0 0 16 16"
 		fill="none"
 		xmlns="http://www.w3.org/2000/svg"
+		aria-hidden="true"
 	>
 		<path
 			d="M3.58065 4.89474H0V16H3.58065V4.89474ZM1.79032 0C0.801613 0 0 0.801613 0 1.79032C0 2.77903 0.801613 3.58065 1.79032 3.58065C2.77903 3.58065 3.58065 2.77903 3.58065 1.79032C3.58065 0.801613 2.77903 0 1.79032 0ZM8.71613 4.89474H5.33871V16H8.71613V10.0645C8.71613 8.46774 9.11774 6.93548 11.1613 6.93548C13.1774 6.93548 13.2097 8.75806 13.2097 10.1613V16H16V9.48387C16 6.74194 15.3871 4.64516 12.1935 4.64516C10.6452 4.64516 9.59677 5.48387 9.16129 6.27419H9.12903V4.89474H8.71613Z"
@@ -62,6 +65,7 @@ const InstagramIcon = ({ className }: { className?: string }) => (
 		viewBox="0 0 13 13"
 		fill="none"
 		xmlns="http://www.w3.org/2000/svg"
+		aria-hidden="true"
 	>
 		<rect
 			x="1.08333"
@@ -284,11 +288,9 @@ export function ShareModal({
 	const [copied, setCopied] = useState(false)
 	const previewRef = useRef<HTMLDivElement>(null)
 
+	const localStorageUsername = useLocalStorageUsername()
 	const displayName =
-		user?.displayUsername ||
-		(typeof window !== "undefined" ? localStorage.getItem("username") : null) ||
-		(typeof window !== "undefined" ? localStorage.getItem("userName") : null) ||
-		""
+		user?.displayUsername || localStorageUsername || user?.name || ""
 	const userName = displayName ? `${displayName.split(" ")[0]}'s` : "Your"
 
 	const capturePreview = useCallback(async (): Promise<Blob | null> => {

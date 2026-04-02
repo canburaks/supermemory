@@ -10,6 +10,7 @@ import { useAuth } from "@lib/auth-context"
 import { TextEditor } from "./text-editor"
 import { useProject } from "@/stores"
 import { useQuickNoteDraft } from "@/stores/quick-note-draft"
+import { useLocalStorageUsername } from "@hooks/use-local-storage-username"
 
 interface FullscreenNoteModalProps {
 	isOpen: boolean
@@ -27,6 +28,7 @@ export function FullscreenNoteModal({
 	isSaving = false,
 }: FullscreenNoteModalProps) {
 	const { user } = useAuth()
+	const localStorageUsername = useLocalStorageUsername()
 	const { selectedProject } = useProject()
 	const { setDraft } = useQuickNoteDraft(selectedProject)
 	const [content, setContent] = useState(initialContent)
@@ -43,10 +45,7 @@ export function FullscreenNoteModal({
 	}, [isOpen, initialContent])
 
 	const displayName =
-		user?.displayUsername ||
-		(typeof window !== "undefined" && localStorage.getItem("username")) ||
-		(typeof window !== "undefined" && localStorage.getItem("userName")) ||
-		""
+		user?.displayUsername || localStorageUsername || user?.name || ""
 	const userName = displayName ? `${displayName.split(" ")[0]}'s` : "My"
 
 	const handleSave = useCallback(() => {

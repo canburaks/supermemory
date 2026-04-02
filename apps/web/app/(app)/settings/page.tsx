@@ -1,6 +1,6 @@
 "use client"
 import { Logo } from "@ui/assets/Logo"
-import { Avatar, AvatarFallback, AvatarImage } from "@ui/components/avatar"
+import { UserProfileMenu } from "@/components/user-profile-menu"
 import { useAuth } from "@lib/auth-context"
 import { motion } from "motion/react"
 import NovaOrb from "@/components/nova/nova-orb"
@@ -14,6 +14,7 @@ import Support from "@/components/settings/support"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { useRouter } from "next/navigation"
 import { useIsMobile } from "@hooks/use-mobile"
+import { useLocalStorageUsername } from "@hooks/use-local-storage-username"
 import { analytics } from "@/lib/analytics"
 import { Sun } from "lucide-react"
 
@@ -137,6 +138,7 @@ export default function SettingsPage() {
 	const hasInitialized = useRef(false)
 	const router = useRouter()
 	const isMobile = useIsMobile()
+	const localStorageUsername = useLocalStorageUsername()
 
 	useEffect(() => {
 		if (hasInitialized.current) return
@@ -163,28 +165,57 @@ export default function SettingsPage() {
 		window.addEventListener("hashchange", handleHashChange)
 		return () => window.removeEventListener("hashchange", handleHashChange)
 	}, [])
+
+	const headerDisplayName =
+		user?.displayUsername || localStorageUsername || user?.name || ""
+	const headerPossessive = headerDisplayName
+		? `${headerDisplayName.split(" ")[0]}'s`
+		: ""
+
 	return (
 		<div className="h-screen flex flex-col overflow-hidden">
-			<header className="flex justify-between items-center px-4 md:px-6 py-3 shrink-0">
-				<button
-					type="button"
-					onClick={() => router.push("/")}
-					className="cursor-pointer"
-				>
-					<Logo className="h-7" />
-				</button>
-				<div className="flex items-center gap-2">
-					{user && (
-						<Avatar className="border border-border h-8 w-8 md:h-10 md:w-10">
-							<AvatarImage src={user?.image ?? ""} />
-							<AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
-						</Avatar>
+			<header className="relative z-20 flex justify-between items-center gap-3 px-4 md:px-6 py-3 shrink-0">
+				<nav
+					className={cn(
+						"flex items-center gap-2 sm:gap-3 min-w-0 text-sm",
+						dmSansClassName(),
 					)}
-				</div>
+					aria-label="Breadcrumb"
+				>
+					<button
+						type="button"
+						onClick={() => router.push("/")}
+						className={cn(
+							"flex items-center min-w-0 rounded-lg py-1 pr-2 -ml-1 pl-1",
+							"hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 transition-colors cursor-pointer text-left",
+						)}
+					>
+						<Logo className="h-7 shrink-0" />
+						{headerDisplayName ? (
+							<div className="flex flex-col items-start justify-center ml-2 min-w-0">
+								<p className="text-[#8B8B8B] text-[11px] leading-tight">
+									{headerPossessive}
+								</p>
+								<p className="text-white font-bold text-xl leading-none -mt-1">
+									supermemory
+								</p>
+							</div>
+						) : (
+							<span className="ml-2 font-medium text-white/90">
+								supermemory
+							</span>
+						)}
+					</button>
+					<span className="text-white/35 shrink-0" aria-hidden>
+						/
+					</span>
+					<span className="text-white/50 font-medium shrink-0">Settings</span>
+				</nav>
+				<UserProfileMenu />
 			</header>
 			<main className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
 				<div className="flex flex-col md:flex-row md:justify-center gap-4 md:gap-8 lg:gap-12 px-4 md:px-6 pt-4 pb-6 md:h-full">
-					<div className="w-full md:w-auto md:min-w-[280px] shrink-0">
+					<div className="md:w-auto md:max-w-[380px] shrink-0">
 						{!isMobile && (
 							<motion.div
 								animate={{
