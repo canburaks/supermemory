@@ -3,6 +3,10 @@
 import { dmSans125ClassName } from "@/lib/fonts"
 import { cn } from "@lib/utils"
 import { useAuth } from "@lib/auth-context"
+import {
+	useAccountMemberships,
+	useDeleteUserAccount,
+} from "@/hooks/use-account-settings"
 import { Avatar, AvatarFallback, AvatarImage } from "@ui/components/avatar"
 import { useTokenUsage } from "@/hooks/use-token-usage"
 import { formatUsageNumber, tokensToCredits } from "@/lib/billing-utils"
@@ -24,7 +28,8 @@ import {
 	ChevronDown,
 	Building2,
 } from "lucide-react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import { toast } from "sonner"
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
 	return (
@@ -86,14 +91,53 @@ function PlanFeatureRow({
 	)
 }
 
+function formatOrgRole(role: string): string {
+	const r = role.toLowerCase()
+	if (r === "owner") return "Owner"
+	if (r === "admin") return "Admin"
+	if (r === "member") return "Member"
+	return role
+		? role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()
+		: "Member"
+}
+
 export default function Account() {
-	const { user, org, setActiveOrg } = useAuth()
+	const { user, org, setActiveOrg, clearActiveOrg } = useAuth()
 	const autumn = useCustomer()
 	const [isUpgrading, setIsUpgrading] = useState(false)
-	const [deleteConfirmText, setDeleteConfirmText] = useState("")
+	const [emailConfirm, setEmailConfirm] = useState("")
+	const [notifyWhenDeleted, setNotifyWhenDeleted] = useState(false)
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+	const [isClosingAccount, setIsClosingAccount] = useState(false)
 	const [switchingOrgId, setSwitchingOrgId] = useState<string | null>(null)
 	const { data: allOrgs } = authClient.useListOrganizations()
+	const { data: memberships, isPending: membershipsPending } =
+		useAccountMemberships()
+
+	const sortedMemberships = useMemo(() => {
+		if (!memberships?.length) return []
+		return [...memberships].sort((a, b) => a.name.localeCompare(b.name))
+	}, [memberships])
+
+	const ownedOrgs = useMemo(
+		() => memberships?.filter((m) => m.role === "owner") ?? [],
+		[memberships],
+	)
+
+	const hasOwnedOrgWithTeammates = useMemo(
+		() => ownedOrgs.some((m) => m.memberCount > 1),
+		[ownedOrgs],
+	)
+
+	const showMembershipsOverview =
+		!membershipsPending &&
+		(sortedMemberships.length > 1 || hasOwnedOrgWithTeammates)
+
+	const deleteUserAccount = useDeleteUserAccount()
+
+	const emailMatches = user?.email
+		? emailConfirm.trim().toLowerCase() === user.email.trim().toLowerCase()
+		: false
 
 	const handleOrgSwitch = async (orgSlug: string, orgId: string) => {
 		if (orgId === org?.id) return
@@ -142,15 +186,32 @@ export default function Account() {
 		}
 	}
 
-	const handleDeleteAccount = () => {
-		if (deleteConfirmText !== "DELETE") return
-		// TODO: Implement account deletion API call
-		console.log("Delete account requested")
-		setIsDeleteDialogOpen(false)
-		setDeleteConfirmText("")
+	const handleDeleteAccount = async () => {
+		if (!user?.email || !emailMatches || membershipsPending) return
+		setIsClosingAccount(true)
+		try {
+			await deleteUserAccount.mutateAsync({
+				confirmation: user.email,
+				notifyOnComplete: notifyWhenDeleted,
+			})
+			clearActiveOrg()
+			try {
+				await authClient.signOut()
+			} catch {
+				window.location.assign("/login/new")
+				return
+			}
+			setIsDeleteDialogOpen(false)
+			setEmailConfirm("")
+			setNotifyWhenDeleted(false)
+			window.location.assign("/login/new")
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : "Something went wrong"
+			toast.error(msg)
+		} finally {
+			setIsClosingAccount(false)
+		}
 	}
-
-	const isDeleteEnabled = deleteConfirmText === "DELETE"
 
 	// Format member since date
 	const memberSince = user?.createdAt
@@ -722,7 +783,10 @@ export default function Account() {
 							open={isDeleteDialogOpen}
 							onOpenChange={(open) => {
 								setIsDeleteDialogOpen(open)
-								if (!open) setDeleteConfirmText("")
+								if (!open) {
+									setEmailConfirm("")
+									setNotifyWhenDeleted(false)
+								}
 							}}
 						>
 							<DialogTrigger asChild>
@@ -755,7 +819,7 @@ export default function Account() {
 									{/* Header */}
 									<div className="flex flex-col gap-6">
 										<div className="flex items-start gap-4">
-											<div className="flex-1 flex flex-col gap-1 pl-1">
+											<div className="flex flex-1 flex-col gap-3 pl-1">
 												<p
 													className={cn(
 														dmSans125ClassName(),
@@ -767,13 +831,56 @@ export default function Account() {
 												<p
 													className={cn(
 														dmSans125ClassName(),
-														"font-medium text-[16px] tracking-[-0.16px] text-[#737373] leading-[1.35]",
+														"text-[12px] tracking-[-0.12px] text-[#737373]",
 													)}
 												>
-													This will permanently delete your memories,
-													conversations, settings and cancel any active
-													subscriptions.
+													This cannot be undone.
 												</p>
+												{hasOwnedOrgWithTeammates && (
+													<p
+														className={cn(
+															dmSans125ClassName(),
+															"text-[13px] font-medium tracking-[-0.13px] text-[#C73B1B] leading-[1.35]",
+														)}
+													>
+														You own at least one organization that still has
+														other members. Those organizations will be deleted
+														for everyone when you confirm.
+													</p>
+												)}
+												<details className="group rounded-lg border border-white/10 bg-[#14161A]/80 px-3 py-2">
+													<summary
+														className={cn(
+															dmSans125ClassName(),
+															"flex cursor-pointer list-none items-center justify-between gap-2 text-[12px] font-normal tracking-[-0.12px] text-[#A3A3A3] [&::-webkit-details-marker]:hidden",
+														)}
+													>
+														What happens next?
+														<ChevronDown className="size-3.5 shrink-0 text-[#737373] group-open:rotate-180" />
+													</summary>
+													<div
+														className={cn(
+															dmSans125ClassName(),
+															"mt-2 space-y-2 border-t border-white/10 pt-2 text-[12px] tracking-[-0.12px] text-[#737373] leading-snug",
+														)}
+													>
+														<p>
+															Your account is locked immediately; data removal
+															runs in the background.
+														</p>
+														<ul className="list-disc space-y-1.5 pl-4 marker:text-onboarding">
+															<li>
+																Removes memories, conversations, and settings;
+																cancels active subscriptions.
+															</li>
+															<li>
+																Orgs where you&apos;re only a member:
+																you&apos;re removed; the org continues.
+															</li>
+															<li>Orgs you own: deleted for all members.</li>
+														</ul>
+													</div>
+												</details>
 											</div>
 											<DialogClose asChild>
 												<button
@@ -790,6 +897,70 @@ export default function Account() {
 											</DialogClose>
 										</div>
 
+										{showMembershipsOverview && (
+											<div className="flex flex-col gap-2 pl-1">
+												<p
+													className={cn(
+														dmSans125ClassName(),
+														"font-semibold text-[14px] tracking-[-0.14px] text-[#FAFAFA]",
+													)}
+												>
+													Your organizations
+												</p>
+												<div className="flex max-h-[min(220px,40vh)] flex-col gap-1.5 overflow-y-auto pr-1">
+													{sortedMemberships.map((m) => (
+														<div
+															className={cn(
+																"flex items-center justify-between gap-3 rounded-[10px]",
+																"border border-white/10 bg-[#14161A]/80 px-3 py-2.5",
+															)}
+															key={m.orgId}
+														>
+															<div className="min-w-0 flex-1">
+																<p
+																	className={cn(
+																		dmSans125ClassName(),
+																		"truncate text-[13px] font-medium tracking-[-0.13px] text-[#FAFAFA]",
+																	)}
+																>
+																	{m.name}
+																</p>
+																{m.slug ? (
+																	<p
+																		className={cn(
+																			dmSans125ClassName(),
+																			"truncate text-[11px] tracking-[-0.11px] text-[#737373]",
+																		)}
+																	>
+																		{m.slug}
+																	</p>
+																) : null}
+															</div>
+															<div className="flex shrink-0 flex-col items-end gap-0.5">
+																<span
+																	className={cn(
+																		dmSans125ClassName(),
+																		"rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium tracking-[0.02em] text-[#A3A3A3]",
+																	)}
+																>
+																	{formatOrgRole(m.role)}
+																</span>
+																<span
+																	className={cn(
+																		dmSans125ClassName(),
+																		"tabular-nums text-[10px] tracking-[-0.1px] text-[#737373]",
+																	)}
+																>
+																	{m.memberCount} member
+																	{m.memberCount === 1 ? "" : "s"}
+																</span>
+															</div>
+														</div>
+													))}
+												</div>
+											</div>
+										)}
+
 										{/* Confirmation input */}
 										<div className="flex flex-col gap-4">
 											<p
@@ -798,8 +969,7 @@ export default function Account() {
 													"font-semibold text-[16px] tracking-[-0.16px] text-[#FAFAFA] pl-2",
 												)}
 											>
-												Type <span className="text-[#C73B1B]">DELETE</span> to
-												confirm:
+												Type your account email to confirm:
 											</p>
 											<div
 												className={cn(
@@ -809,9 +979,10 @@ export default function Account() {
 											>
 												<input
 													type="text"
-													value={deleteConfirmText}
-													onChange={(e) => setDeleteConfirmText(e.target.value)}
-													placeholder="DELETE"
+													autoComplete="off"
+													value={emailConfirm}
+													onChange={(e) => setEmailConfirm(e.target.value)}
+													placeholder={user?.email ?? "you@example.com"}
 													className={cn(
 														"w-full px-4 py-3 bg-transparent",
 														"text-[#FAFAFA] placeholder:text-[#737373]",
@@ -822,6 +993,26 @@ export default function Account() {
 												/>
 												<div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_0px_0px_1px_rgba(43,49,67,0.08),inset_0px_1px_1px_rgba(0,0,0,0.08),inset_0px_2px_4px_rgba(0,0,0,0.02)]" />
 											</div>
+											<label
+												className={cn(
+													"flex cursor-pointer items-start gap-3 pl-2 pt-2",
+													dmSans125ClassName(),
+													"text-[13px] tracking-[-0.13px] text-[#A3A3A3]",
+												)}
+											>
+												<input
+													type="checkbox"
+													checked={notifyWhenDeleted}
+													onChange={(e) =>
+														setNotifyWhenDeleted(e.target.checked)
+													}
+													className="mt-0.5 size-4 shrink-0 rounded border-onboarding bg-[#14161A]"
+												/>
+												<span>
+													Email me when my account and data have been fully
+													removed.
+												</span>
+											</label>
 										</div>
 									</div>
 
@@ -841,20 +1032,29 @@ export default function Account() {
 										</DialogClose>
 										<button
 											type="button"
-											onClick={handleDeleteAccount}
-											disabled={!isDeleteEnabled}
+											onClick={() => void handleDeleteAccount()}
+											disabled={
+												!emailMatches || isClosingAccount || membershipsPending
+											}
 											className={cn(
 												"relative flex items-center gap-1.5 pl-4 pr-[18px] py-2 rounded-full",
 												"bg-[#290F0A] text-[#C73B1B]",
 												"font-normal text-[14px] tracking-[-0.14px]",
 												"cursor-pointer transition-opacity",
 												"disabled:opacity-40 disabled:cursor-not-allowed",
-												isDeleteEnabled && "hover:opacity-90",
+												emailMatches &&
+													!isClosingAccount &&
+													!membershipsPending &&
+													"hover:opacity-90",
 												dmSans125ClassName(),
 											)}
 										>
-											<Trash2 className="size-[18px]" />
-											<span>Delete</span>
+											{isClosingAccount ? (
+												<LoaderIcon className="size-[18px] animate-spin" />
+											) : (
+												<Trash2 className="size-[18px]" />
+											)}
+											<span>{isClosingAccount ? "Deleting…" : "Delete"}</span>
 											<div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_1.5px_1.5px_4.5px_rgba(0,0,0,0.4)]" />
 										</button>
 									</div>

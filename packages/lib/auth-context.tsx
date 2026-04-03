@@ -26,6 +26,7 @@ interface AuthContextType {
 	isRestoring: boolean
 	isSessionPending: boolean
 	setActiveOrg: (orgSlug: string) => Promise<void>
+	clearActiveOrg: () => void
 	updateOrgMetadata: (partial: Record<string, unknown>) => void
 	refetchOrganizations: () => Promise<unknown>
 }
@@ -58,6 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		})
 		setOrg(activeOrg)
 		localStorage.setItem(STORAGE_KEY, slug)
+	}, [])
+
+	const clearActiveOrg = useCallback(() => {
+		setOrg(null)
+		try {
+			localStorage.removeItem(STORAGE_KEY)
+		} catch {}
 	}, [])
 
 	const updateOrgMetadata = useCallback((partial: Record<string, unknown>) => {
@@ -188,6 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				session: session?.session ?? null,
 				user: session?.user ?? null,
 				setActiveOrg,
+				clearActiveOrg,
 				updateOrgMetadata,
 				refetchOrganizations,
 			}}
