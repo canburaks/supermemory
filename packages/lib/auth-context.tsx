@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		isPending: orgsPending,
 	} = authClient.useListOrganizations()
 
-	const organizations: OrganizationListItem[] | null =
+	const organizations =
 		session?.session == null ? null : orgsPending ? null : (orgsData ?? [])
 
 	const refetchOrganizations = useCallback(
@@ -74,9 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	}, [])
 
 	useEffect(() => {
-		if (isSessionPending) {
-			return
-		}
+		if (isSessionPending) return
 
 		if (!session?.session) {
 			setIsRestoring(false)
@@ -150,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		return () => {
 			cancelled = true
 		}
-	}, [session, isSessionPending, orgsData, orgsPending, setActiveOrg])
+	}, [isSessionPending, session, orgsData, orgsPending, setActiveOrg])
 
 	useEffect(() => {
 		if (typeof window === "undefined") return

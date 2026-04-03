@@ -10,8 +10,14 @@ export function EnsureWorkspace({ children }: { children: React.ReactNode }) {
 	const { session, organizations, isRestoring } = useAuth()
 
 	useEffect(() => {
-		if (!session) return
-		if (isRestoring || organizations === null) return
+		if (isRestoring) return
+		if (!session) {
+			router.replace(
+				`/login?redirect=${encodeURIComponent(window.location.href)}`,
+			)
+			return
+		}
+		if (organizations === null) return
 		if (organizations.length > 0) return
 		if (pathname.startsWith("/onboarding")) return
 		router.replace("/onboarding/welcome?step=input")

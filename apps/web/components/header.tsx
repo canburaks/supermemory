@@ -34,7 +34,7 @@ import { useIsMobile } from "@hooks/use-mobile"
 import { useLocalStorageUsername } from "@hooks/use-local-storage-username"
 import { UserProfileMenu } from "@/components/user-profile-menu"
 import { FeedbackModal } from "./feedback-modal"
-import { useViewMode } from "@/lib/view-mode-context"
+import { useViewMode, type ViewMode } from "@/lib/view-mode-context"
 import { useQueryState } from "nuqs"
 import { feedbackParam } from "@/lib/search-params"
 
@@ -45,7 +45,7 @@ interface HeaderProps {
 }
 
 export function Header({ onAddMemory, onOpenChat, onOpenSearch }: HeaderProps) {
-	const { user } = useAuth()
+	const { user, isRestoring } = useAuth()
 	const { selectedProjects, setSelectedProjects } = useProject()
 	const router = useRouter()
 	const isMobile = useIsMobile()
@@ -53,14 +53,16 @@ export function Header({ onAddMemory, onOpenChat, onOpenSearch }: HeaderProps) {
 		"feedback",
 		feedbackParam,
 	)
-	const isFeedbackOpen = feedbackOpen ?? false
 	const { viewMode, setViewMode } = useViewMode()
 
 	const handleFeedback = () => setFeedbackOpen(true)
 
 	const localStorageUsername = useLocalStorageUsername()
 	const displayName =
-		user?.displayUsername || localStorageUsername || user?.name || ""
+		user?.displayUsername ||
+		(isRestoring ? localStorageUsername : "") ||
+		user?.name ||
+		""
 	const userName = displayName ? `${displayName.split(" ")[0]}'s` : "My"
 	return (
 		<div className="flex p-3 md:p-4 justify-between items-center gap-2">
@@ -141,7 +143,7 @@ export function Header({ onAddMemory, onOpenChat, onOpenSearch }: HeaderProps) {
 				<Tabs
 					value={viewMode === "list" ? "grid" : viewMode}
 					onValueChange={(v) =>
-						setViewMode(v === "grid" ? "list" : (v as "graph" | "integrations"))
+						setViewMode(v === "grid" ? "list" : (v as ViewMode))
 					}
 				>
 					<TabsList className="rounded-full border border-[#161F2C] h-11! z-10!">
@@ -307,7 +309,7 @@ export function Header({ onAddMemory, onOpenChat, onOpenSearch }: HeaderProps) {
 				<UserProfileMenu />
 			</div>
 			<FeedbackModal
-				isOpen={isFeedbackOpen}
+				isOpen={feedbackOpen}
 				onClose={() => setFeedbackOpen(false)}
 			/>
 		</div>
