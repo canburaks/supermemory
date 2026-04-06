@@ -21,6 +21,7 @@ import { GoogleDrive, Notion, OneDrive } from "@ui/assets/icons"
 import { ArrowLeft, Sun } from "lucide-react"
 import {
 	integrationParam,
+	pluginsPanelParam,
 	type IntegrationParamValue,
 } from "@/lib/search-params"
 import Image from "next/image"
@@ -46,7 +47,8 @@ const cards: IntegrationCardDef[] = [
 	{
 		id: "plugins",
 		title: "Plugins",
-		description: "Claude Code, OpenCode, and other AI tool integrations",
+		description:
+			"Claude Code, OpenCode, Hermes, and other AI tool integrations",
 		pro: true,
 		icon: (
 			<div className="flex items-center -space-x-1.5">
@@ -67,6 +69,13 @@ const cards: IntegrationCardDef[] = [
 				<Image
 					src="/images/plugins/openclaw.svg"
 					alt="OpenClaw"
+					width={24}
+					height={24}
+					className="size-6 rounded"
+				/>
+				<Image
+					src="/images/plugins/hermes.svg"
+					alt="Hermes"
 					width={24}
 					height={24}
 					className="size-6 rounded"
@@ -156,17 +165,26 @@ export function IntegrationsView() {
 		"integration",
 		integrationParam,
 	)
+	const [pluginsPanel, setPluginsPanel] = useQueryState(
+		"plugins",
+		pluginsPanelParam,
+	)
 	const [selectedCard, setSelectedCard] = useState<CardId | null>(null)
 
 	useEffect(() => {
+		if (pluginsPanel === true) {
+			setSelectedCard("plugins")
+			return
+		}
 		if (integration && INTEGRATION_TO_CARD[integration]) {
 			setSelectedCard(INTEGRATION_TO_CARD[integration])
 		}
-	}, [integration])
+	}, [integration, pluginsPanel])
 
 	const handleBack = () => {
 		setSelectedCard(null)
 		setIntegration(null)
+		void setPluginsPanel(null)
 	}
 
 	switch (selectedCard) {

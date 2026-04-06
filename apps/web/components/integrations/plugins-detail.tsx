@@ -83,6 +83,19 @@ const PLUGIN_CATALOG: Record<string, PluginInfo> = {
 		docsUrl: "https://docs.supermemory.ai/integrations/openclaw",
 		repoUrl: "https://github.com/supermemoryai/openclaw-supermemory",
 	},
+	hermes: {
+		id: "hermes",
+		name: "Hermes",
+		description: "Memory layer for Hermes agent",
+		features: [
+			"Semantic search across previous sessions",
+			"Auto-capture of conversation context",
+			"Builds persistent user profile from interactions",
+		],
+		icon: "/images/plugins/hermes.svg",
+		docsUrl: "https://docs.supermemory.ai/integrations/hermes",
+		repoUrl: "https://github.com/NousResearch/hermes-agent",
+	},
 }
 
 interface ConnectedPlugin {
@@ -335,7 +348,7 @@ export function PluginsDetail() {
 									"text-[12px] text-[#737373]",
 								)}
 							>
-								Claude Code, OpenCode, OpenClaw & more
+								Claude Code, OpenCode, OpenClaw, Hermes & more
 							</span>
 						</div>
 

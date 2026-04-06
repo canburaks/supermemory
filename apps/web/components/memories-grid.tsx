@@ -29,7 +29,10 @@ import { QuickNoteCard } from "./quick-note-card"
 import { HighlightsCard, type HighlightItem } from "./highlights-card"
 import { GraphCard } from "./memory-graph"
 import { Button } from "@ui/components/button"
-import { categoriesParam } from "@/lib/search-params"
+import {
+	categoriesParam,
+	type IntegrationParamValue,
+} from "@/lib/search-params"
 import { NovaEmptyState } from "@/components/nova/nova-empty-state"
 import {
 	AlertDialog,
@@ -143,9 +146,7 @@ interface HighlightsProps {
 
 interface NovaEmptyStateProps {
 	onAddMemory: (tab: "note" | "link") => void
-	onOpenIntegrations: (
-		integration?: "import" | "chrome" | "connections",
-	) => void
+	onOpenIntegrations: (integration?: IntegrationParamValue) => void
 	isAllSpaces: boolean
 	spaceName?: string
 	onSwitchToAllSpaces?: () => void

@@ -29,6 +29,8 @@ export type IntegrationParamValue = (typeof integrationLiterals)[number]
 export const integrationParam = parseAsStringLiteral(integrationLiterals)
 export type ViewParamValue = (typeof viewLiterals)[number]
 export const viewParam = parseAsStringLiteral(viewLiterals).withDefault("list")
+
+export const pluginsPanelParam = parseAsBoolean
 export const categoriesParam = parseAsArrayOf(parseAsString, ",").withDefault(
 	[],
 )

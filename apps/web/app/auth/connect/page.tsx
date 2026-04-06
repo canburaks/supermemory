@@ -67,6 +67,16 @@ const PLUGIN_INFO: Record<string, PluginInfo> = {
 		],
 		icon: "/images/plugins/openclaw.svg",
 	},
+	hermes: {
+		name: "Hermes",
+		description: "Memory layer for Hermes agent",
+		features: [
+			"Semantic search across previous sessions",
+			"Auto-capture of conversation context",
+			"Builds persistent user profile from interactions",
+		],
+		icon: "/images/plugins/hermes.svg",
+	},
 	cursor: {
 		name: "Cursor",
 		description:
@@ -339,7 +349,7 @@ function AuthConnectContent() {
 						</button>
 
 						<a
-							href="https://app.supermemory.ai/?view=integrations/plugins"
+							href="https://app.supermemory.ai/?plugins=true"
 							className={dmSans125ClassName(
 								"text-[12px] text-[#737373] hover:text-[#FAFAFA] transition-colors",
 							)}

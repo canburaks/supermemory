@@ -41,6 +41,8 @@ import {
 	fullscreenParam,
 	chatParam,
 	integrationParam,
+	pluginsPanelParam,
+	type IntegrationParamValue,
 } from "@/lib/search-params"
 
 type DocumentsResponse = z.infer<typeof DocumentsWithMemoriesResponseSchema>
@@ -121,7 +123,17 @@ export default function NewPage() {
 		fullscreenParam,
 	)
 	const [isChatOpen, setIsChatOpen] = useQueryState("chat", chatParam)
-	const [, setIntegration] = useQueryState("integration", integrationParam)
+	const [integrationFromUrl, setIntegration] = useQueryState(
+		"integration",
+		integrationParam,
+	)
+	const [pluginsPanelFromUrl] = useQueryState("plugins", pluginsPanelParam)
+
+	useEffect(() => {
+		if (integrationFromUrl || pluginsPanelFromUrl === true) {
+			void setViewMode("integrations")
+		}
+	}, [integrationFromUrl, pluginsPanelFromUrl, setViewMode])
 
 	// Ephemeral local state (not worth URL-encoding)
 	const [fullscreenInitialContent, setFullscreenInitialContent] = useState("")
@@ -378,7 +390,7 @@ export default function NewPage() {
 	)
 
 	const handleOpenIntegrations = useCallback(
-		(integration?: "import" | "chrome" | "connections") => {
+		(integration?: IntegrationParamValue) => {
 			setViewMode("integrations")
 			if (integration) {
 				setIntegration(integration)

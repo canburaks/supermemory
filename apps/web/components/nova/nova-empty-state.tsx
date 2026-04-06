@@ -1,6 +1,7 @@
 "use client"
 
 import { CHROME_EXTENSION_URL } from "@repo/lib/constants"
+import type { IntegrationParamValue } from "@/lib/search-params"
 import { cn } from "@lib/utils"
 import { dmSansClassName } from "@/lib/fonts"
 import { Button } from "@ui/components/button"
@@ -10,9 +11,7 @@ import { ArrowRight, Link2, FileText, Zap } from "lucide-react"
 
 interface NovaEmptyStateProps {
 	onAddMemory: (tab: "note" | "link") => void
-	onOpenIntegrations: (
-		integration?: "import" | "chrome" | "connections",
-	) => void
+	onOpenIntegrations: (integration?: IntegrationParamValue) => void
 	isAllSpaces: boolean
 	spaceName?: string
 	onSwitchToAllSpaces?: () => void
