@@ -30,11 +30,27 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod/v4"
 import { analytics } from "@/lib/analytics"
+import {
+	defaultMcpSetupTab,
+	getMcpClientSetup,
+	mcpClientSetupShowsTabs,
+	mcpClientShowsOneClick,
+	resolveMcpSetupTabForClient,
+} from "@/lib/mcp-client-setup"
+import { ClaudeDesktopManualTimeline } from "@/components/mcp-modal/claude-desktop-manual-timeline"
+import {
+	buildMcpUrlRemoteJson,
+	CHATGPT_REMOTE_MCP_URL,
+	CLAUDE_DESKTOP_MCP_SNIPPET,
+	getManualInstallEntry,
+} from "@/lib/mcp-manual-instructions"
 import { cn } from "@lib/utils"
 import type { Project } from "@lib/types"
 import { motion, AnimatePresence } from "motion/react"
 
 const clients = {
+	chatgpt: "ChatGPT",
+	codex: "Codex",
 	cursor: "Cursor",
 	claude: "Claude Desktop",
 	vscode: "VSCode",
@@ -42,9 +58,6 @@ const clients = {
 	"gemini-cli": "Gemini CLI",
 	"claude-code": "Claude Code",
 	"mcp-url": "MCP URL",
-	"roo-cline": "Roo Cline",
-	witsy: "Witsy",
-	enconvo: "Enconvo",
 } as const
 
 const mcpMigrationSchema = z.object({
@@ -125,11 +138,8 @@ export function ConnectAIModal({
 	const setIsOpen = onOpenChange || setInternalIsOpen
 	const [isMigrateDialogOpen, setIsMigrateDialogOpen] = useState(false)
 	const [selectedProject, setSelectedProject] = useState<string | null>("none")
-	const [cursorInstallTab, setCursorInstallTab] = useState<
-		"oneClick" | "manual"
-	>("oneClick")
-	const [mcpUrlTab, setMcpUrlTab] = useState<"oneClick" | "manual">(
-		openInitialTab || "oneClick",
+	const [setupTab, setSetupTab] = useState<"oneClick" | "manual">(
+		openInitialTab ?? "manual",
 	)
 	const [manualApiKey, setManualApiKey] = useState<string | null>(null)
 	const [isCopied, setIsCopied] = useState(false)
@@ -252,21 +262,38 @@ export function ConnectAIModal({
 		},
 	})
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies(createMcpApiKeyMutation.mutate): we need to mutate the mutation
 	useEffect(() => {
 		if (openInitialClient) {
 			setSelectedClient(openInitialClient as keyof typeof clients)
-			if (openInitialTab) {
-				setMcpUrlTab(openInitialTab)
-				if (org?.id) {
-					createMcpApiKeyMutation.mutate()
-				}
-			}
+			setSetupTab(
+				resolveMcpSetupTabForClient(openInitialClient, openInitialTab),
+			)
 		}
-	}, [openInitialClient, openInitialTab, org?.id])
+	}, [openInitialClient, openInitialTab])
+
+	useEffect(() => {
+		if (!selectedClient) return
+		const s = getMcpClientSetup(selectedClient)
+		if (!s.oneClick && setupTab === "oneClick") setSetupTab("manual")
+		if (!s.manual && setupTab === "manual") setSetupTab("oneClick")
+	}, [selectedClient, setupTab])
+
+	useEffect(() => {
+		if (selectedClient !== "mcp-url" || setupTab !== "manual" || !org?.id)
+			return
+		if (manualApiKey || createMcpApiKeyMutation.isPending) return
+		createMcpApiKeyMutation.mutate()
+	}, [
+		selectedClient,
+		setupTab,
+		org?.id,
+		manualApiKey,
+		createMcpApiKeyMutation.isPending,
+		createMcpApiKeyMutation.mutate,
+	])
 
 	function generateInstallCommand() {
-		if (!selectedClient) return ""
+		if (!selectedClient || selectedClient === "chatgpt") return ""
 
 		let command = `npx -y install-mcp@latest https://mcp.supermemory.ai/mcp --client ${selectedClient} --oauth=yes`
 
@@ -289,6 +316,24 @@ export function ConnectAIModal({
 		analytics.mcpInstallCmdCopied()
 		toast.success("Copied to clipboard!")
 	}
+
+	const copyManualSnippet = (text: string) => {
+		navigator.clipboard.writeText(text)
+		analytics.mcpInstallCmdCopied()
+		toast.success("Copied to clipboard!")
+		setIsCopied(true)
+		setTimeout(() => setIsCopied(false), 2000)
+	}
+
+	const clientSetup = selectedClient ? getMcpClientSetup(selectedClient) : null
+	const effectiveSetupTab: "manual" | "oneClick" =
+		clientSetup == null
+			? "manual"
+			: !clientSetup.manual
+				? "oneClick"
+				: !clientSetup.oneClick
+					? "manual"
+					: setupTab
 
 	return (
 		<Dialog onOpenChange={setIsOpen} open={isOpen}>
@@ -313,414 +358,406 @@ export function ConnectAIModal({
 						</div>
 
 						<div className="space-x-2 space-y-2">
-							{Object.entries(clients)
-								.slice(0, 7)
-								.map(([key, clientName]) => (
-									<button
-										className={`pr-3 pl-1 rounded-full border cursor-pointer transition-all ${
-											selectedClient === key
-												? "border-primary bg-primary/10"
-												: "border-border hover:border-border/60 hover:bg-muted/50"
-										}`}
-										key={key}
-										onClick={() =>
-											setSelectedClient(key as keyof typeof clients)
-										}
-										type="button"
-									>
-										<div className="flex items-center gap-1">
-											<div className="w-8 h-8 flex items-center justify-center">
-												<Image
-													alt={clientName}
-													className="rounded object-contain"
-													height={20}
-													onError={(e) => {
-														const target = e.target as HTMLImageElement
-														target.style.display = "none"
-														const parent = target.parentElement
-														if (
-															parent &&
-															!parent.querySelector(".fallback-text")
-														) {
-															const fallback = document.createElement("span")
-															fallback.className =
-																"fallback-text text-sm font-bold text-muted-foreground"
-															fallback.textContent = clientName
-																.substring(0, 2)
-																.toUpperCase()
-															parent.appendChild(fallback)
-														}
-													}}
-													src={
-														key === "mcp-url"
-															? "/mcp-icon.svg"
-															: `/mcp-supported-tools/${key === "claude-code" ? "claude" : key}.png`
+							{Object.entries(clients).map(([key, clientName]) => (
+								<button
+									className={`pr-3 pl-1 rounded-full border cursor-pointer transition-all ${
+										selectedClient === key
+											? "border-primary bg-primary/10"
+											: "border-border hover:border-border/60 hover:bg-muted/50"
+									}`}
+									key={key}
+									onClick={() => {
+										setSelectedClient(key as keyof typeof clients)
+										setSetupTab(defaultMcpSetupTab(getMcpClientSetup(key)))
+									}}
+									type="button"
+								>
+									<div className="flex items-center gap-1">
+										<div className="w-8 h-8 flex items-center justify-center">
+											<Image
+												alt={clientName}
+												className="rounded object-contain"
+												height={20}
+												onError={(e) => {
+													const target = e.target as HTMLImageElement
+													target.style.display = "none"
+													const parent = target.parentElement
+													if (
+														parent &&
+														!parent.querySelector(".fallback-text")
+													) {
+														const fallback = document.createElement("span")
+														fallback.className =
+															"fallback-text text-sm font-bold text-muted-foreground"
+														fallback.textContent = clientName
+															.substring(0, 2)
+															.toUpperCase()
+														parent.appendChild(fallback)
 													}
-													width={20}
-												/>
-											</div>
-											<span className="text-sm font-medium text-foreground/80">
-												{clientName}
-											</span>
+												}}
+												src={
+													key === "mcp-url"
+														? "/mcp-icon.svg"
+														: `/mcp-supported-tools/${key === "claude-code" ? "claude" : key}.png`
+												}
+												width={20}
+											/>
 										</div>
-									</button>
-								))}
+										<span className="text-sm font-medium text-foreground/80">
+											{clientName}
+										</span>
+									</div>
+								</button>
+							))}
 						</div>
 					</div>
 
-					{/* Step 2: One-click Install for Cursor, Project Selection for others, or MCP URL */}
 					{selectedClient && (
 						<div className="space-y-4">
-							<div className="flex justify-between">
-								<div className="flex items-center gap-3">
-									<div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-semibold">
-										2
-									</div>
-									<h3 className="text-sm font-medium">
-										{selectedClient === "cursor"
-											? "Install Supermemory MCP"
-											: selectedClient === "mcp-url"
-												? "MCP Server Configuration"
-												: "Select Target Project (Optional)"}
-									</h3>
-								</div>
-
-								<div className="flex items-center gap-3">
-									{selectedClient && selectedClient !== "mcp-url" && (
-										<ManualMCPHelpLink
-											onClick={() => {
-												setSelectedClient("mcp-url")
-												setMcpUrlTab("manual")
-												if (
-													!manualApiKey &&
-													!createMcpApiKeyMutation.isPending
-												) {
-													createMcpApiKeyMutation.mutate()
-												}
-											}}
-										/>
-									)}
-
-									<div
-										className={cn(
-											"flex-col gap-2 hidden",
-											(selectedClient === "cursor" ||
-												selectedClient === "mcp-url") &&
-												"flex",
-										)}
-									>
-										{/* Tabs */}
-										<div className="flex justify-end">
-											<div className="flex bg-muted/50 rounded-full p-1 border border-border">
-												<button
-													className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
-														(
-															selectedClient === "cursor"
-																? cursorInstallTab
-																: mcpUrlTab
-														) === "oneClick"
-															? "bg-background text-foreground border border-border shadow-sm"
-															: "text-muted-foreground hover:text-foreground"
-													}`}
-													onClick={() =>
-														selectedClient === "cursor"
-															? setCursorInstallTab("oneClick")
-															: setMcpUrlTab("oneClick")
-													}
-													type="button"
-												>
-													{selectedClient === "mcp-url"
-														? "Quick Setup"
-														: "One Click Install"}
-												</button>
-												<button
-													className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
-														(
-															selectedClient === "cursor"
-																? cursorInstallTab
-																: mcpUrlTab
-														) === "manual"
-															? "bg-background text-foreground border border-border shadow-sm"
-															: "text-muted-foreground hover:text-foreground"
-													}`}
-													onClick={() => {
-														if (selectedClient === "cursor") {
-															setCursorInstallTab("manual")
-														} else {
-															setMcpUrlTab("manual")
-															if (
-																!manualApiKey &&
-																!createMcpApiKeyMutation.isPending
-															) {
-																createMcpApiKeyMutation.mutate()
-															}
-														}
-													}}
-													type="button"
-												>
-													Manual Config
-												</button>
-											</div>
-										</div>
-									</div>
+							<div className="flex items-center gap-3">
+								<div className="flex size-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">
+									2
 								</div>
 							</div>
-
-							{selectedClient === "cursor" ? (
-								<div className="space-y-4">
-									{/* Tab Content */}
-									{cursorInstallTab === "oneClick" ? (
-										<div className="space-y-4">
-											<div className="flex flex-col items-center gap-4 p-6 border border-green-500/20 rounded-lg bg-green-500/5">
-												<div className="text-center">
-													<p className="text-sm text-foreground/80 mb-2">
-														Click the button below to automatically install and
-														configure Supermemory in Cursor
-													</p>
-												</div>
-												<a
-													href={getCursorDeeplink()}
-													onClick={() => {
-														analytics.mcpInstallCmdCopied()
-														toast.success("Opening Cursor installer...")
-													}}
-												>
-													<img
-														alt="Add Supermemory MCP server to Cursor"
-														className="hover:opacity-80 transition-opacity cursor-pointer"
-														height="40"
-														src="https://cursor.com/deeplink/mcp-install-dark.svg"
-													/>
-												</a>
-											</div>
+							{((clientSetup && mcpClientSetupShowsTabs(clientSetup)) ||
+								selectedClient !== "mcp-url") && (
+								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+									{clientSetup && mcpClientSetupShowsTabs(clientSetup) ? (
+										<div
+											className="flex w-full max-w-md flex-row gap-1 rounded-full border border-border bg-muted/50 p-1 sm:w-auto sm:min-w-[280px]"
+											role="tablist"
+											aria-label="Setup method"
+										>
+											<button
+												className={cn(
+													"min-h-9 flex-1 rounded-full px-3 py-2 text-center text-xs font-medium transition-all",
+													effectiveSetupTab === "manual"
+														? "border border-border bg-background text-foreground shadow-sm"
+														: "text-muted-foreground hover:text-foreground",
+												)}
+												onClick={() => setSetupTab("manual")}
+												role="tab"
+												type="button"
+												aria-selected={effectiveSetupTab === "manual"}
+											>
+												Manual instructions
+											</button>
+											<button
+												className={cn(
+													"min-h-9 flex-1 rounded-full px-3 py-2 text-center text-xs font-medium transition-all",
+													effectiveSetupTab === "oneClick"
+														? "border border-border bg-background text-foreground shadow-sm"
+														: "text-muted-foreground hover:text-foreground",
+												)}
+												onClick={() => setSetupTab("oneClick")}
+												role="tab"
+												type="button"
+												aria-selected={effectiveSetupTab === "oneClick"}
+											>
+												One click setup
+											</button>
 										</div>
-									) : (
-										<div className="space-y-4">
-											<p className="text-sm text-muted-foreground">
-												Choose a project and follow the installation steps below
-											</p>
-											<div className="max-w-md">
-												<Select
-													disabled={isLoadingProjects}
-													onValueChange={setSelectedProject}
-													value={selectedProject || "none"}
-												>
-													<SelectTrigger className="w-full">
-														<SelectValue placeholder="Select project" />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="none">
-															Auto-select project
-														</SelectItem>
-														<SelectItem value="sm_project_default">
-															Default Project
-														</SelectItem>
-														{projects
-															.filter(
-																(p: Project) =>
-																	p.containerTag !== "sm_project_default",
-															)
-															.map((project: Project) => (
-																<SelectItem
-																	key={project.id}
-																	value={project.containerTag}
-																>
-																	{project.name}
-																</SelectItem>
-															))}
-													</SelectContent>
-												</Select>
-											</div>
+									) : null}
+									{selectedClient !== "mcp-url" && (
+										<div
+											className={cn(
+												"flex justify-end",
+												!(
+													clientSetup && mcpClientSetupShowsTabs(clientSetup)
+												) && "w-full sm:justify-start",
+											)}
+										>
+											<ManualMCPHelpLink
+												onClick={() => {
+													setSelectedClient("mcp-url")
+													setSetupTab("manual")
+													if (
+														!manualApiKey &&
+														!createMcpApiKeyMutation.isPending
+													) {
+														createMcpApiKeyMutation.mutate()
+													}
+												}}
+											/>
 										</div>
 									)}
 								</div>
-							) : selectedClient === "mcp-url" ? (
-								<div className="space-y-4">
-									{mcpUrlTab === "oneClick" ? (
-										<div className="space-y-2">
-											<p className="text-sm text-muted-foreground">
-												Use this URL to quickly configure supermemory in your AI
-												assistant
-											</p>
-											<div className="relative">
-												<Input
-													className="font-mono text-xs w-full pr-10"
-													readOnly
-													value="https://mcp.supermemory.ai/mcp"
-												/>
-												<Button
-													className="absolute top-[-1px] right-0 cursor-pointer"
-													onClick={() => {
-														navigator.clipboard.writeText(
-															"https://mcp.supermemory.ai/mcp",
-														)
-														analytics.mcpInstallCmdCopied()
-														toast.success("Copied to clipboard!")
-													}}
-													variant="ghost"
-												>
-													<CopyIcon className="size-4" />
-												</Button>
-											</div>
-										</div>
-									) : (
-										<div className="space-y-3">
-											<p className="text-sm text-muted-foreground">
-												Add this configuration to your MCP settings file with
-												authentication
-											</p>
-											{createMcpApiKeyMutation.isPending ? (
-												<div className="flex items-center justify-center p-8">
-													<Loader2 className="h-6 w-6 animate-spin text-primary" />
+							)}
+							<div className="min-w-0 space-y-4">
+								{clientSetup &&
+								mcpClientShowsOneClick(clientSetup, effectiveSetupTab) ? (
+									<>
+										{selectedClient === "cursor" && (
+											<div className="space-y-4">
+												<div className="flex flex-col items-center gap-4 rounded-lg border border-green-500/20 bg-green-500/5 p-6">
+													<p className="text-center text-sm text-foreground/80">
+														Open Cursor and add supermemory in one step, or
+														switch to Manual instructions to edit{" "}
+														<code className="text-xs">mcp.json</code> yourself.
+													</p>
+													<a
+														href={getCursorDeeplink()}
+														onClick={() => {
+															analytics.mcpInstallCmdCopied()
+															toast.success("Opening Cursor installer...")
+														}}
+													>
+														<img
+															alt="Add Supermemory MCP server to Cursor"
+															className="cursor-pointer transition-opacity hover:opacity-80"
+															height="40"
+															src="https://cursor.com/deeplink/mcp-install-dark.svg"
+														/>
+													</a>
 												</div>
-											) : (
-												<>
-													<div className="relative">
-														<pre className="bg-muted border border-border rounded-lg p-4 pr-12 text-xs overflow-x-auto max-w-full">
-															<code className="font-mono block whitespace-pre-wrap break-all">
-																{`{
-  "supermemory-mcp": {
-    "command": "npx",
-    "args": ["-y", "mcp-remote", "https://mcp.supermemory.ai/mcp"],
-    "env": {},
-    "headers": {
-      "Authorization": "Bearer ${manualApiKey || "your-api-key-here"}"
-    }
-  }
-}`}
-															</code>
-														</pre>
-														<Button
-															className="absolute top-2 right-2 cursor-pointer h-8 w-8 p-0 bg-muted/80 hover:bg-muted"
-															onClick={() => {
-																const config = `{
-  "supermemory-mcp": {
-    "command": "npx",
-    "args": ["-y", "mcp-remote", "https://mcp.supermemory.ai/mcp"],
-    "env": {},
-    "headers": {
-      "Authorization": "Bearer ${manualApiKey || "your-api-key-here"}"
-    }
-  }
-}`
-																navigator.clipboard.writeText(config)
-																analytics.mcpInstallCmdCopied()
-																toast.success("Copied to clipboard!")
-																setIsCopied(true)
-																setTimeout(() => setIsCopied(false), 2000)
-															}}
-															variant="ghost"
-															size="icon"
+												<p className="text-xs text-muted-foreground">
+													Alternatively, pick another client and use the install
+													command, or use Manual instructions for a JSON
+													snippet.
+												</p>
+											</div>
+										)}
+										{selectedClient === "mcp-url" && (
+											<div className="space-y-2">
+												<p className="text-sm text-muted-foreground">
+													Paste this URL into clients that support remote MCP
+													over HTTPS (OAuth).
+												</p>
+												<div className="relative max-w-xl">
+													<Input
+														className="w-full pr-10 font-mono text-xs"
+														readOnly
+														value={CHATGPT_REMOTE_MCP_URL}
+													/>
+													<Button
+														className="absolute -top-px right-0 cursor-pointer"
+														onClick={() => {
+															navigator.clipboard.writeText(
+																CHATGPT_REMOTE_MCP_URL,
+															)
+															analytics.mcpInstallCmdCopied()
+															toast.success("Copied to clipboard!")
+														}}
+														variant="ghost"
+													>
+														<CopyIcon className="size-4" />
+													</Button>
+												</div>
+											</div>
+										)}
+										{selectedClient !== "cursor" &&
+											selectedClient !== "mcp-url" && (
+												<div className="space-y-4">
+													<p className="text-sm text-muted-foreground">
+														Optional: scope installs to a project. Then copy and
+														run the command in your terminal.
+													</p>
+													<div className="max-w-md">
+														<Select
+															disabled={isLoadingProjects}
+															onValueChange={setSelectedProject}
+															value={selectedProject || "none"}
 														>
-															{isCopied ? (
-																<CheckIcon className="size-3.5 text-green-600" />
-															) : (
-																<CopyIcon className="size-3.5" />
-															)}
+															<SelectTrigger className="w-full">
+																<SelectValue placeholder="Select project" />
+															</SelectTrigger>
+															<SelectContent>
+																<SelectItem value="none">
+																	Auto-select project
+																</SelectItem>
+																<SelectItem value="sm_project_default">
+																	Default Project
+																</SelectItem>
+																{projects
+																	.filter(
+																		(p: Project) =>
+																			p.containerTag !== "sm_project_default",
+																	)
+																	.map((project: Project) => (
+																		<SelectItem
+																			key={project.id}
+																			value={project.containerTag}
+																		>
+																			{project.name}
+																		</SelectItem>
+																	))}
+															</SelectContent>
+														</Select>
+													</div>
+													<div className="relative max-w-full">
+														<Input
+															className="w-full pr-10 font-mono text-xs"
+															readOnly
+															value={generateInstallCommand()}
+														/>
+														<Button
+															className="absolute -top-px right-0 cursor-pointer"
+															onClick={copyToClipboard}
+															variant="ghost"
+														>
+															<CopyIcon className="size-4" />
 														</Button>
 													</div>
 													<p className="text-xs text-muted-foreground">
-														The API key is included as a Bearer token in the
-														Authorization header
+														Requires Node/npx. OAuth runs when the CLI prompts
+														you.
 													</p>
-												</>
+												</div>
 											)}
-										</div>
-									)}
-								</div>
-							) : (
-								<div className="max-w-md">
-									<Select
-										disabled={isLoadingProjects}
-										onValueChange={setSelectedProject}
-										value={selectedProject || "none"}
-									>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Select project" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="none">Auto-select project</SelectItem>
-											<SelectItem value="sm_project_default">
-												Default Project
-											</SelectItem>
-											{projects
-												.filter(
-													(p: Project) =>
-														p.containerTag !== "sm_project_default",
-												)
-												.map((project: Project) => (
-													<SelectItem
-														key={project.id}
-														value={project.containerTag}
+									</>
+								) : (
+									(() => {
+										const manual = getManualInstallEntry(selectedClient)
+										if (manual.kind === "chatgpt") {
+											return (
+												<div className="space-y-3">
+													<ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+														<li>Open ChatGPT in your browser.</li>
+														<li>
+															Settings → Apps → Advanced settings → enable
+															Developer mode.
+														</li>
+														<li>
+															Create an app and paste the MCP URL when asked.
+														</li>
+														<li>Complete OAuth in ChatGPT.</li>
+													</ol>
+													<div className="relative max-w-xl">
+														<Input
+															className="w-full pr-10 font-mono text-xs"
+															readOnly
+															value={CHATGPT_REMOTE_MCP_URL}
+														/>
+														<Button
+															className="absolute -top-px right-0 cursor-pointer"
+															onClick={() =>
+																copyManualSnippet(CHATGPT_REMOTE_MCP_URL)
+															}
+															variant="ghost"
+														>
+															<CopyIcon className="size-4" />
+														</Button>
+													</div>
+													<a
+														className="text-xs text-primary underline"
+														href="https://developers.openai.com/api/docs/guides/developer-mode/"
+														rel="noopener noreferrer"
+														target="_blank"
 													>
-														{project.name}
-													</SelectItem>
-												))}
-										</SelectContent>
-									</Select>
-								</div>
-							)}
+														Developer mode docs (OpenAI)
+													</a>
+												</div>
+											)
+										}
+										if (manual.kind === "claude-desktop-timeline") {
+											return (
+												<ClaudeDesktopManualTimeline
+													onCopySnippet={() =>
+														copyManualSnippet(CLAUDE_DESKTOP_MCP_SNIPPET)
+													}
+													snippetCopied={isCopied}
+													variant="modal"
+												/>
+											)
+										}
+										if (manual.kind === "generic-remote") {
+											const remoteSnippet = buildMcpUrlRemoteJson(
+												manualApiKey || "your-api-key-here",
+											)
+											return (
+												<div className="space-y-3">
+													<p className="text-sm text-muted-foreground">
+														Paste into your MCP config. We create an API key for
+														you when you open this tab; copy the block after it
+														appears.
+													</p>
+													{createMcpApiKeyMutation.isPending ? (
+														<div className="flex items-center justify-center p-8">
+															<Loader2 className="h-6 w-6 animate-spin text-primary" />
+														</div>
+													) : (
+														<>
+															<div className="relative max-w-full">
+																<pre className="max-h-80 overflow-x-auto overflow-y-auto rounded-lg border border-border bg-muted p-4 pr-12 text-xs">
+																	<code className="block font-mono whitespace-pre-wrap break-all">
+																		{remoteSnippet}
+																	</code>
+																</pre>
+																<Button
+																	className="absolute top-2 right-2 h-8 w-8 cursor-pointer p-0 bg-muted/80 hover:bg-muted"
+																	onClick={() =>
+																		copyManualSnippet(remoteSnippet)
+																	}
+																	size="icon"
+																	variant="ghost"
+																>
+																	{isCopied ? (
+																		<CheckIcon className="size-3.5 text-green-600" />
+																	) : (
+																		<CopyIcon className="size-3.5" />
+																	)}
+																</Button>
+															</div>
+															<p className="text-xs text-muted-foreground">
+																Bearer token uses your supermemory API key.
+															</p>
+														</>
+													)}
+												</div>
+											)
+										}
+										return (
+											<div className="space-y-3">
+												<p className="text-sm text-muted-foreground">
+													{manual.paths}
+												</p>
+												<p className="text-sm text-muted-foreground">
+													Merge the snippet with your existing config. Restart
+													the client and sign in with OAuth when prompted.
+												</p>
+												<div className="relative max-w-full">
+													<pre className="max-h-80 overflow-x-auto overflow-y-auto rounded-lg border border-border bg-muted p-4 pr-12 text-xs">
+														<code className="block font-mono whitespace-pre-wrap break-all">
+															{manual.snippet}
+														</code>
+													</pre>
+													<Button
+														className="absolute top-2 right-2 h-8 w-8 cursor-pointer p-0 bg-muted/80 hover:bg-muted"
+														onClick={() => copyManualSnippet(manual.snippet)}
+														size="icon"
+														variant="ghost"
+													>
+														{isCopied ? (
+															<CheckIcon className="size-3.5 text-green-600" />
+														) : (
+															<CopyIcon className="size-3.5" />
+														)}
+													</Button>
+												</div>
+											</div>
+										)
+									})()
+								)}
+							</div>
 						</div>
 					)}
 
-					{/* Step 3: Command Line - Show for manual installation or non-cursor clients */}
-					{selectedClient &&
-						selectedClient !== "mcp-url" &&
-						(selectedClient !== "cursor" || cursorInstallTab === "manual") && (
-							<div className="space-y-4">
-								<div className="flex items-center gap-3">
-									<div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-semibold">
-										3
-									</div>
-									<h3 className="text-sm font-medium">
-										{selectedClient === "cursor" &&
-										cursorInstallTab === "manual"
-											? "Manual Installation Command"
-											: "Installation Command"}
-									</h3>
-								</div>
-
-								<div className="relative">
-									<Input
-										className="font-mono text-xs w-full pr-10"
-										readOnly
-										value={generateInstallCommand()}
-									/>
-									<Button
-										className="absolute top-[-1px] right-0 cursor-pointer"
-										onClick={copyToClipboard}
-										variant="ghost"
-									>
-										<CopyIcon className="size-4" />
-									</Button>
-								</div>
-
-								<p className="text-xs text-muted-foreground">
-									{selectedClient === "cursor" && cursorInstallTab === "manual"
-										? "Copy and run this command in your terminal for manual installation (or switch to the one-click option above)"
-										: "Copy and run this command in your terminal to install the MCP server"}
-								</p>
-							</div>
-						)}
-
-					{/* Blurred Command Placeholder - Only show when no client selected */}
 					{!selectedClient && (
 						<div className="space-y-4">
 							<div className="flex items-center gap-3">
-								<div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-semibold">
-									3
+								<div className="flex size-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">
+									2
 								</div>
-								<h3 className="text-sm font-medium">Installation Command</h3>
 							</div>
 
 							<div className="relative">
-								<div className="w-full h-10 bg-muted border border-border rounded-md flex items-center px-3">
-									<div className="w-full h-4 bg-muted-foreground/20 rounded animate-pulse blur-sm" />
+								<div className="flex h-10 w-full items-center rounded-md border border-border bg-muted px-3">
+									<div className="h-4 w-full animate-pulse rounded bg-muted-foreground/20 blur-sm" />
 								</div>
 							</div>
 
 							<p className="text-xs text-muted-foreground/50">
-								Select a client above to see the installation command
+								Select a client for setup instructions
 							</p>
 						</div>
 					)}
@@ -740,7 +777,7 @@ export function ConnectAIModal({
 						<div className="p-1 bg-muted rounded-lg border border-border items-center flex px-2">
 							<CopyableCell
 								className="font-mono text-xs text-primary"
-								value="https://mcp.supermemory.ai/mcp"
+								value={CHATGPT_REMOTE_MCP_URL}
 							/>
 						</div>
 					</div>

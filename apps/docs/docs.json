@@ -135,7 +135,15 @@
 					{
 						"anchor": "Supermemory MCP",
 						"icon": "terminal",
-						"pages": ["supermemory-mcp/mcp", "supermemory-mcp/setup"]
+						"pages": [
+							"supermemory-mcp/mcp",
+							"supermemory-mcp/setup",
+							{
+								"group": "Setups",
+								"icon": "layers",
+								"pages": ["supermemory-mcp/claude-desktop"]
+							}
+						]
 					}
 				],
 				"tab": "Developer Platform"
