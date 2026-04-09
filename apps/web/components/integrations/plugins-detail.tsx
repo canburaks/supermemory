@@ -30,6 +30,12 @@ import {
 	DialogTitle,
 	DialogPortal,
 } from "@ui/components/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui/components/tabs"
+
+/** Match `FREE_TIER_PLUGIN_IDS` in mono `packages/lib/plugins.ts`. */
+function isFreeTierPlugin(pluginId: string): boolean {
+	return pluginId === "hermes"
+}
 
 interface PluginInfo {
 	id: string
@@ -107,6 +113,346 @@ interface ConnectedPlugin {
 	keyStart?: string | null
 }
 
+function ProUpgradeBanner({ onUpgrade }: { onUpgrade: () => void }) {
+	return (
+		<div
+			className={cn(
+				"bg-gradient-to-br from-[#0D121A] to-[#14161A] rounded-[14px] p-6 border border-[#4BA0FA]/20 mb-6",
+				"shadow-[inset_2.42px_2.42px_4.263px_rgba(11,15,21,0.7)]",
+			)}
+		>
+			<div className="flex flex-col gap-5">
+				<div className="flex items-start gap-4">
+					<div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#4BA0FA]/10 shrink-0">
+						<Zap className="size-6 text-[#4BA0FA]" />
+					</div>
+					<div className="flex-1">
+						<h3
+							className={cn(
+								dmSans125ClassName(),
+								"font-semibold text-[18px] text-[#FAFAFA]",
+							)}
+						>
+							Unlock Pro plugins
+						</h3>
+						<p
+							className={cn(
+								dmSans125ClassName(),
+								"text-[14px] text-[#737373] mt-1",
+							)}
+						>
+							Connect Claude Code, OpenCode, OpenClaw, Cursor, and more with a
+							Pro plan.
+						</p>
+					</div>
+				</div>
+
+				<div className="grid gap-4 sm:grid-cols-3">
+					{[
+						{
+							icon: Brain,
+							title: "Context Retention",
+							desc: "AI remembers your preferences across sessions",
+						},
+						{
+							icon: Zap,
+							title: "Instant Recall",
+							desc: "Past decisions surface automatically when relevant",
+						},
+						{
+							icon: Key,
+							title: "Secure & Private",
+							desc: "Your data stays yours with encrypted storage",
+						},
+					].map(({ icon: Icon, title, desc }) => (
+						<div key={title} className="flex items-start gap-2.5">
+							<Icon className="mt-0.5 size-4 text-[#4BA0FA] shrink-0" />
+							<div>
+								<p
+									className={cn(
+										dmSans125ClassName(),
+										"text-[13px] font-medium text-[#FAFAFA]",
+									)}
+								>
+									{title}
+								</p>
+								<p
+									className={cn(
+										dmSans125ClassName(),
+										"text-[11px] text-[#737373]",
+									)}
+								>
+									{desc}
+								</p>
+							</div>
+						</div>
+					))}
+				</div>
+
+				<div className="flex items-center gap-3 flex-wrap">
+					{Object.values(PLUGIN_CATALOG)
+						.filter((p) => !isFreeTierPlugin(p.id))
+						.map((plugin) => (
+							<div
+								key={plugin.id}
+								className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#1E293B] bg-[#080B0F]"
+							>
+								<Image
+									alt={plugin.name}
+									className="size-5"
+									height={20}
+									src={plugin.icon}
+									width={20}
+								/>
+							</div>
+						))}
+					<span
+						className={cn(dmSans125ClassName(), "text-[12px] text-[#737373]")}
+					>
+						Claude Code, OpenCode, OpenClaw & more
+					</span>
+				</div>
+
+				<button
+					type="button"
+					onClick={onUpgrade}
+					className={cn(
+						"w-full sm:w-auto flex items-center justify-center gap-2",
+						"bg-[#4BA0FA] hover:bg-[#4BA0FA]/90 text-white",
+						"rounded-full h-11 px-6 font-medium text-sm transition-colors cursor-pointer",
+						dmSans125ClassName(),
+					)}
+				>
+					Upgrade to Pro
+				</button>
+			</div>
+		</div>
+	)
+}
+
+function ConnectedPluginRow({
+	plugin,
+	info,
+	onRevoke,
+}: {
+	plugin: ConnectedPlugin
+	info: PluginInfo | undefined
+	onRevoke: (keyId: string) => void
+}) {
+	return (
+		<div
+			className={cn(
+				"bg-[#0D121A] border border-[rgba(82,89,102,0.2)] rounded-[12px] px-4 py-3",
+				"shadow-[0px_1px_2px_0px_rgba(0,43,87,0.1)]",
+			)}
+		>
+			<div className="flex items-center gap-3">
+				{info && (
+					<div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#1E293B] bg-[#080B0F]">
+						<Image
+							alt={info.name}
+							className="size-6"
+							height={24}
+							src={info.icon}
+							width={24}
+						/>
+					</div>
+				)}
+				<div className="flex-1">
+					<p
+						className={cn(
+							dmSans125ClassName(),
+							"font-medium text-[14px] text-[#FAFAFA]",
+						)}
+					>
+						{info?.name || plugin.pluginId}
+					</p>
+					<div className="flex items-center gap-2">
+						<div className="size-[7px] rounded-full bg-[#00AC3F]" />
+						<span
+							className={cn(dmSans125ClassName(), "text-[12px] text-[#00AC3F]")}
+						>
+							Connected
+						</span>
+						{plugin.keyStart && (
+							<span
+								className={cn(
+									dmSans125ClassName(),
+									"text-[12px] text-[#737373] font-mono",
+								)}
+							>
+								{plugin.keyStart}...
+							</span>
+						)}
+					</div>
+				</div>
+				<button
+					type="button"
+					onClick={() => onRevoke(plugin.keyId)}
+					className="text-[#737373] hover:text-red-400 transition-colors"
+				>
+					<Trash2 className="size-4" />
+				</button>
+			</div>
+		</div>
+	)
+}
+
+function PluginCard({
+	plugin,
+	pluginId,
+	isConnected,
+	isCurrentlyConnecting,
+	connectingPlugin,
+	needsProUpgrade,
+	onConnect,
+	onUpgrade,
+}: {
+	plugin: PluginInfo
+	pluginId: string
+	isConnected: boolean
+	isCurrentlyConnecting: boolean
+	connectingPlugin: string | null
+	needsProUpgrade: boolean
+	onConnect: (id: string) => void
+	onUpgrade: () => void
+}) {
+	return (
+		<div
+			className={cn(
+				"bg-[#0D121A] rounded-[12px] p-4 flex flex-col gap-3 border",
+				isConnected ? "border-[#4BA0FA]/30" : "border-[rgba(82,89,102,0.2)]",
+			)}
+		>
+			<div className="flex items-start gap-3">
+				<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#1E293B] bg-[#080B0F]">
+					<Image
+						alt={plugin.name}
+						className="size-6"
+						height={24}
+						src={plugin.icon}
+						width={24}
+					/>
+				</div>
+				<div className="flex-1">
+					<div className="flex items-center gap-2 flex-wrap">
+						<span
+							className={cn(
+								dmSans125ClassName(),
+								"font-medium text-[14px] text-[#FAFAFA]",
+							)}
+						>
+							{plugin.name}
+						</span>
+						{isConnected && (
+							<span className="flex items-center gap-1 text-[10px] text-[#00AC3F] border border-[#00AC3F]/30 rounded-full px-1.5 py-0.5">
+								<CheckCircle className="size-2.5" /> Connected
+							</span>
+						)}
+					</div>
+					<p
+						className={cn(
+							dmSans125ClassName(),
+							"text-[12px] text-[#737373] mt-0.5",
+						)}
+					>
+						{plugin.description}
+					</p>
+				</div>
+			</div>
+
+			<ul className="space-y-1.5">
+				{plugin.features.map((feature) => (
+					<li key={feature} className="flex items-start gap-2">
+						<ArrowRight className="mt-0.5 size-3 shrink-0 text-[#4BA0FA]" />
+						<span
+							className={cn(dmSans125ClassName(), "text-[12px] text-[#8B8B8B]")}
+						>
+							{feature}
+						</span>
+					</li>
+				))}
+			</ul>
+
+			<div className="mt-auto flex flex-col gap-2">
+				{isConnected ? (
+					<button
+						type="button"
+						disabled
+						className={cn(
+							"w-full flex items-center justify-center gap-2 rounded-full h-9 px-4 text-[12px] font-medium",
+							"bg-[#080B0F] text-[#737373] border border-[#1E293B] opacity-60",
+							dmSans125ClassName(),
+						)}
+					>
+						<CheckCircle className="size-3.5" /> Already Connected
+					</button>
+				) : needsProUpgrade ? (
+					<button
+						type="button"
+						onClick={onUpgrade}
+						className={cn(
+							"w-full flex items-center justify-center gap-2 rounded-full h-9 px-4 text-[12px] font-medium",
+							"bg-[#080B0F] text-[#FAFAFA] border border-[#1E293B] hover:border-[#4BA0FA]/40 transition-colors cursor-pointer",
+							dmSans125ClassName(),
+						)}
+					>
+						Upgrade for this plugin
+					</button>
+				) : (
+					<button
+						type="button"
+						onClick={() => onConnect(pluginId)}
+						disabled={!!connectingPlugin}
+						className={cn(
+							"w-full flex items-center justify-center gap-2 rounded-full h-9 px-4 text-[12px] font-medium",
+							"bg-[#4BA0FA] hover:bg-[#4BA0FA]/90 text-white transition-colors cursor-pointer",
+							"disabled:opacity-50 disabled:cursor-not-allowed",
+							dmSans125ClassName(),
+						)}
+					>
+						{isCurrentlyConnecting ? (
+							<>
+								<Loader className="size-3.5 animate-spin" /> Connecting...
+							</>
+						) : (
+							"Connect Plugin"
+						)}
+					</button>
+				)}
+				<div className="flex gap-2">
+					{plugin.docsUrl && (
+						<a
+							href={plugin.docsUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							className={cn(
+								"flex-1 flex items-center justify-center gap-1 text-[11px] text-[#737373] hover:text-white transition-colors",
+								dmSans125ClassName(),
+							)}
+						>
+							<BookOpen className="size-3" /> Docs
+						</a>
+					)}
+					{plugin.repoUrl && (
+						<a
+							href={plugin.repoUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							className={cn(
+								"flex-1 flex items-center justify-center gap-1 text-[11px] text-[#737373] hover:text-white transition-colors",
+								dmSans125ClassName(),
+							)}
+						>
+							<ExternalLink className="size-3" /> GitHub
+						</a>
+					)}
+				</div>
+			</div>
+		</div>
+	)
+}
+
 export function PluginsDetail() {
 	const { org } = useAuth()
 	const autumn = useCustomer()
@@ -178,6 +524,16 @@ export function PluginsDetail() {
 		[connectedPlugins],
 	)
 
+	const freeConnected = useMemo(
+		() => connectedPlugins.filter((p) => isFreeTierPlugin(p.pluginId)),
+		[connectedPlugins],
+	)
+
+	const proConnected = useMemo(
+		() => connectedPlugins.filter((p) => !isFreeTierPlugin(p.pluginId)),
+		[connectedPlugins],
+	)
+
 	const createPluginKeyMutation = useMutation({
 		mutationFn: async (pluginId: string) => {
 			const API_URL =
@@ -188,7 +544,9 @@ export function PluginsDetail() {
 			})
 			if (!res.ok) {
 				if (res.status === 403) {
-					throw new Error("A Pro plan is required to connect plugins.")
+					throw new Error(
+						"This plugin requires a Pro plan. Hermes is available on the Free plan.",
+					)
 				}
 				const errorData = (await res.json().catch(() => ({}))) as {
 					message?: string
@@ -249,139 +607,62 @@ export function PluginsDetail() {
 	const isLoading = autumn.isLoading
 	const availablePlugins = pluginsData?.plugins ?? Object.keys(PLUGIN_CATALOG)
 
+	const freePluginIds = useMemo(() => {
+		const ids = new Set(
+			availablePlugins.filter(
+				(id) => PLUGIN_CATALOG[id] && isFreeTierPlugin(id),
+			),
+		)
+		if (PLUGIN_CATALOG.hermes) ids.add("hermes")
+		return [...ids]
+	}, [availablePlugins])
+
+	const proPluginIds = useMemo(
+		() =>
+			availablePlugins.filter(
+				(id) => PLUGIN_CATALOG[id] && !isFreeTierPlugin(id),
+			),
+		[availablePlugins],
+	)
+
+	const allCatalogPluginIds = useMemo(
+		() => availablePlugins.filter((id) => PLUGIN_CATALOG[id]),
+		[availablePlugins],
+	)
+
+	const showPaidAllInOne = !isLoading && hasProProduct
+
 	return (
 		<>
-			{/* Marketing hero for free users */}
-			{!hasProProduct && !isLoading && (
-				<div
-					className={cn(
-						"bg-gradient-to-br from-[#0D121A] to-[#14161A] rounded-[14px] p-6 border border-[#4BA0FA]/20",
-						"shadow-[inset_2.42px_2.42px_4.263px_rgba(11,15,21,0.7)]",
-					)}
-				>
-					<div className="flex flex-col gap-5">
-						<div className="flex items-start gap-4">
-							<div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#4BA0FA]/10 shrink-0">
-								<Zap className="size-6 text-[#4BA0FA]" />
-							</div>
-							<div className="flex-1">
-								<h3
-									className={cn(
-										dmSans125ClassName(),
-										"font-semibold text-[18px] text-[#FAFAFA]",
-									)}
-								>
-									Unlock Persistent Memory for Your Tools
-								</h3>
-								<p
-									className={cn(
-										dmSans125ClassName(),
-										"text-[14px] text-[#737373] mt-1",
-									)}
-								>
-									Upgrade to Pro to connect plugins and give your AI tools
-									long-term memory
-								</p>
-							</div>
-						</div>
-
-						<div className="grid gap-4 sm:grid-cols-3">
-							{[
-								{
-									icon: Brain,
-									title: "Context Retention",
-									desc: "AI remembers your preferences across sessions",
-								},
-								{
-									icon: Zap,
-									title: "Instant Recall",
-									desc: "Past decisions surface automatically when relevant",
-								},
-								{
-									icon: Key,
-									title: "Secure & Private",
-									desc: "Your data stays yours with encrypted storage",
-								},
-							].map(({ icon: Icon, title, desc }) => (
-								<div key={title} className="flex items-start gap-2.5">
-									<Icon className="mt-0.5 size-4 text-[#4BA0FA] shrink-0" />
-									<div>
-										<p
-											className={cn(
-												dmSans125ClassName(),
-												"text-[13px] font-medium text-[#FAFAFA]",
-											)}
-										>
-											{title}
-										</p>
-										<p
-											className={cn(
-												dmSans125ClassName(),
-												"text-[11px] text-[#737373]",
-											)}
-										>
-											{desc}
-										</p>
-									</div>
-								</div>
-							))}
-						</div>
-
-						<div className="flex items-center gap-3">
-							{Object.values(PLUGIN_CATALOG).map((plugin) => (
-								<div
-									key={plugin.id}
-									className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#1E293B] bg-[#080B0F]"
-								>
-									<Image
-										alt={plugin.name}
-										className="size-5"
-										height={20}
-										src={plugin.icon}
-										width={20}
-									/>
-								</div>
-							))}
-							<span
-								className={cn(
-									dmSans125ClassName(),
-									"text-[12px] text-[#737373]",
-								)}
-							>
-								Claude Code, OpenCode, OpenClaw, Hermes & more
-							</span>
-						</div>
-
-						<button
-							type="button"
-							onClick={handleUpgrade}
-							className={cn(
-								"w-full sm:w-auto flex items-center justify-center gap-2",
-								"bg-[#4BA0FA] hover:bg-[#4BA0FA]/90 text-white",
-								"rounded-full h-11 px-6 font-medium text-sm transition-colors cursor-pointer",
-								dmSans125ClassName(),
-							)}
-						>
-							Upgrade to Pro
-						</button>
-					</div>
-				</div>
-			)}
-
 			<div
 				className={cn(
 					"bg-[#14161A] rounded-[14px] p-6 relative overflow-hidden",
 					"shadow-[inset_2.42px_2.42px_4.263px_rgba(11,15,21,0.7)]",
 				)}
 			>
-				<div
-					className={cn(
-						"flex flex-col gap-6",
-						!hasProProduct && !isLoading && "opacity-30 pointer-events-none",
-					)}
-				>
-					{/* Connected plugins */}
-					{connectedPlugins.length > 0 && (
+				{showPaidAllInOne ? (
+					<div className="flex flex-col gap-6">
+						{connectedPlugins.length > 0 && (
+							<div className="flex flex-col gap-3">
+								<span
+									className={cn(
+										dmSans125ClassName(),
+										"font-semibold text-[16px] text-[#FAFAFA]",
+									)}
+								>
+									Connected
+								</span>
+								{connectedPlugins.map((plugin) => (
+									<ConnectedPluginRow
+										key={plugin.id}
+										plugin={plugin}
+										info={PLUGIN_CATALOG[plugin.pluginId]}
+										onRevoke={handleRevoke}
+									/>
+								))}
+							</div>
+						)}
+
 						<div className="flex flex-col gap-3">
 							<span
 								className={cn(
@@ -389,233 +670,193 @@ export function PluginsDetail() {
 									"font-semibold text-[16px] text-[#FAFAFA]",
 								)}
 							>
-								Connected Plugins
+								{connectedPlugins.length > 0
+									? "Add more plugins"
+									: "Available plugins"}
 							</span>
-							{connectedPlugins.map((plugin) => {
-								const info = PLUGIN_CATALOG[plugin.pluginId]
-								return (
-									<div
-										key={plugin.id}
-										className={cn(
-											"bg-[#0D121A] border border-[rgba(82,89,102,0.2)] rounded-[12px] px-4 py-3",
-											"shadow-[0px_1px_2px_0px_rgba(0,43,87,0.1)]",
-										)}
-									>
-										<div className="flex items-center gap-3">
-											{info && (
-												<div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#1E293B] bg-[#080B0F]">
-													<Image
-														alt={info.name}
-														className="size-6"
-														height={24}
-														src={info.icon}
-														width={24}
-													/>
-												</div>
-											)}
-											<div className="flex-1">
-												<p
-													className={cn(
-														dmSans125ClassName(),
-														"font-medium text-[14px] text-[#FAFAFA]",
-													)}
-												>
-													{info?.name || plugin.pluginId}
-												</p>
-												<div className="flex items-center gap-2">
-													<div className="size-[7px] rounded-full bg-[#00AC3F]" />
-													<span
-														className={cn(
-															dmSans125ClassName(),
-															"text-[12px] text-[#00AC3F]",
-														)}
-													>
-														Connected
-													</span>
-													{plugin.keyStart && (
-														<span
-															className={cn(
-																dmSans125ClassName(),
-																"text-[12px] text-[#737373] font-mono",
-															)}
-														>
-															{plugin.keyStart}...
-														</span>
-													)}
-												</div>
-											</div>
-											<button
-												type="button"
-												onClick={() => handleRevoke(plugin.keyId)}
-												className="text-[#737373] hover:text-red-400 transition-colors"
-											>
-												<Trash2 className="size-4" />
-											</button>
-										</div>
-									</div>
-								)
-							})}
-						</div>
-					)}
-
-					{/* Available plugins */}
-					<div className="flex flex-col gap-3">
-						<span
-							className={cn(
-								dmSans125ClassName(),
-								"font-semibold text-[16px] text-[#FAFAFA]",
-							)}
-						>
-							{connectedPlugins.length > 0
-								? "Add More Plugins"
-								: "Available Plugins"}
-						</span>
-						<div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-							{availablePlugins.map((pluginId) => {
-								const plugin = PLUGIN_CATALOG[pluginId]
-								if (!plugin) return null
-
-								const isConnected = connectedPluginIds.includes(pluginId)
-								const isCurrentlyConnecting = connectingPlugin === pluginId
-
-								return (
-									<div
-										key={pluginId}
-										className={cn(
-											"bg-[#0D121A] rounded-[12px] p-4 flex flex-col gap-3 border",
-											isConnected
-												? "border-[#4BA0FA]/30"
-												: "border-[rgba(82,89,102,0.2)]",
-										)}
-									>
-										<div className="flex items-start gap-3">
-											<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#1E293B] bg-[#080B0F]">
-												<Image
-													alt={plugin.name}
-													className="size-6"
-													height={24}
-													src={plugin.icon}
-													width={24}
-												/>
-											</div>
-											<div className="flex-1">
-												<div className="flex items-center gap-2">
-													<span
-														className={cn(
-															dmSans125ClassName(),
-															"font-medium text-[14px] text-[#FAFAFA]",
-														)}
-													>
-														{plugin.name}
-													</span>
-													{isConnected && (
-														<span className="flex items-center gap-1 text-[10px] text-[#00AC3F] border border-[#00AC3F]/30 rounded-full px-1.5 py-0.5">
-															<CheckCircle className="size-2.5" /> Connected
-														</span>
-													)}
-												</div>
-												<p
-													className={cn(
-														dmSans125ClassName(),
-														"text-[12px] text-[#737373] mt-0.5",
-													)}
-												>
-													{plugin.description}
-												</p>
-											</div>
-										</div>
-
-										<ul className="space-y-1.5">
-											{plugin.features.map((feature) => (
-												<li key={feature} className="flex items-start gap-2">
-													<ArrowRight className="mt-0.5 size-3 shrink-0 text-[#4BA0FA]" />
-													<span
-														className={cn(
-															dmSans125ClassName(),
-															"text-[12px] text-[#8B8B8B]",
-														)}
-													>
-														{feature}
-													</span>
-												</li>
-											))}
-										</ul>
-
-										<div className="mt-auto flex flex-col gap-2">
-											{isConnected ? (
-												<button
-													type="button"
-													disabled
-													className={cn(
-														"w-full flex items-center justify-center gap-2 rounded-full h-9 px-4 text-[12px] font-medium",
-														"bg-[#080B0F] text-[#737373] border border-[#1E293B] opacity-60",
-														dmSans125ClassName(),
-													)}
-												>
-													<CheckCircle className="size-3.5" /> Already Connected
-												</button>
-											) : (
-												<button
-													type="button"
-													onClick={() =>
-														createPluginKeyMutation.mutate(pluginId)
-													}
-													disabled={!!connectingPlugin}
-													className={cn(
-														"w-full flex items-center justify-center gap-2 rounded-full h-9 px-4 text-[12px] font-medium",
-														"bg-[#4BA0FA] hover:bg-[#4BA0FA]/90 text-white transition-colors cursor-pointer",
-														"disabled:opacity-50 disabled:cursor-not-allowed",
-														dmSans125ClassName(),
-													)}
-												>
-													{isCurrentlyConnecting ? (
-														<>
-															<Loader className="size-3.5 animate-spin" />{" "}
-															Connecting...
-														</>
-													) : (
-														"Connect Plugin"
-													)}
-												</button>
-											)}
-											<div className="flex gap-2">
-												{plugin.docsUrl && (
-													<a
-														href={plugin.docsUrl}
-														target="_blank"
-														rel="noopener noreferrer"
-														className={cn(
-															"flex-1 flex items-center justify-center gap-1 text-[11px] text-[#737373] hover:text-white transition-colors",
-															dmSans125ClassName(),
-														)}
-													>
-														<BookOpen className="size-3" /> Docs
-													</a>
-												)}
-												{plugin.repoUrl && (
-													<a
-														href={plugin.repoUrl}
-														target="_blank"
-														rel="noopener noreferrer"
-														className={cn(
-															"flex-1 flex items-center justify-center gap-1 text-[11px] text-[#737373] hover:text-white transition-colors",
-															dmSans125ClassName(),
-														)}
-													>
-														<ExternalLink className="size-3" /> GitHub
-													</a>
-												)}
-											</div>
-										</div>
-									</div>
-								)
-							})}
+							<div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+								{allCatalogPluginIds.map((pluginId) => {
+									const plugin = PLUGIN_CATALOG[pluginId]
+									if (!plugin) return null
+									const isConnected = connectedPluginIds.includes(pluginId)
+									const isCurrentlyConnecting = connectingPlugin === pluginId
+									return (
+										<PluginCard
+											key={pluginId}
+											plugin={plugin}
+											pluginId={pluginId}
+											isConnected={isConnected}
+											isCurrentlyConnecting={isCurrentlyConnecting}
+											connectingPlugin={connectingPlugin}
+											needsProUpgrade={false}
+											onConnect={(id) => createPluginKeyMutation.mutate(id)}
+											onUpgrade={handleUpgrade}
+										/>
+									)
+								})}
+							</div>
 						</div>
 					</div>
-				</div>
+				) : (
+					<Tabs defaultValue="free" className="gap-0">
+						<TabsList
+							className={cn(
+								"grid h-auto w-full grid-cols-2 gap-0 rounded-none border-0 border-b border-[#252a33] bg-transparent p-0",
+							)}
+						>
+							<TabsTrigger
+								value="free"
+								className={cn(
+									"relative flex min-h-12 w-full min-w-0 cursor-pointer items-center justify-center rounded-none border-0 border-transparent bg-transparent px-3 py-3 text-[15px] font-medium shadow-none",
+									"text-[#737373] hover:text-[#FAFAFA] transition-colors",
+									"data-[state=active]:bg-transparent data-[state=active]:text-[#FAFAFA] data-[state=active]:shadow-none",
+									"after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-t-[1px] after:bg-[#4BA0FA] after:opacity-0 data-[state=active]:after:opacity-100",
+									dmSans125ClassName(),
+								)}
+							>
+								Free plugins
+							</TabsTrigger>
+							<TabsTrigger
+								value="pro"
+								className={cn(
+									"relative flex min-h-12 w-full min-w-0 cursor-pointer items-center justify-center rounded-none border-0 border-transparent bg-transparent px-3 py-3 text-[15px] font-medium shadow-none",
+									"text-[#737373] hover:text-[#FAFAFA] transition-colors",
+									"data-[state=active]:bg-transparent data-[state=active]:text-[#FAFAFA] data-[state=active]:shadow-none",
+									"after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-t-[1px] after:bg-[#4BA0FA] after:opacity-0 data-[state=active]:after:opacity-100",
+									dmSans125ClassName(),
+								)}
+							>
+								Pro plugins
+							</TabsTrigger>
+						</TabsList>
+
+						<TabsContent value="free" className="mt-5">
+							<p
+								className={cn(
+									dmSans125ClassName(),
+									"text-[13px] text-[#737373] mb-4",
+								)}
+							>
+								Included on every plan — connect with no upgrade.
+							</p>
+
+							{freeConnected.length > 0 && (
+								<div className="flex flex-col gap-3 mb-6">
+									<span
+										className={cn(
+											dmSans125ClassName(),
+											"font-semibold text-[16px] text-[#FAFAFA]",
+										)}
+									>
+										Connected
+									</span>
+									{freeConnected.map((plugin) => (
+										<ConnectedPluginRow
+											key={plugin.id}
+											plugin={plugin}
+											info={PLUGIN_CATALOG[plugin.pluginId]}
+											onRevoke={handleRevoke}
+										/>
+									))}
+								</div>
+							)}
+
+							<div className="flex flex-col gap-3">
+								<span
+									className={cn(
+										dmSans125ClassName(),
+										"font-semibold text-[16px] text-[#FAFAFA]",
+									)}
+								>
+									{freeConnected.length > 0 ? "Add or manage" : "Available"}
+								</span>
+								<div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+									{freePluginIds.map((pluginId) => {
+										const plugin = PLUGIN_CATALOG[pluginId]
+										if (!plugin) return null
+										const isConnected = connectedPluginIds.includes(pluginId)
+										const isCurrentlyConnecting = connectingPlugin === pluginId
+										return (
+											<PluginCard
+												key={pluginId}
+												plugin={plugin}
+												pluginId={pluginId}
+												isConnected={isConnected}
+												isCurrentlyConnecting={isCurrentlyConnecting}
+												connectingPlugin={connectingPlugin}
+												needsProUpgrade={false}
+												onConnect={(id) => createPluginKeyMutation.mutate(id)}
+												onUpgrade={handleUpgrade}
+											/>
+										)
+									})}
+								</div>
+							</div>
+						</TabsContent>
+
+						<TabsContent value="pro" className="mt-5">
+							{!hasProProduct && !isLoading && (
+								<ProUpgradeBanner onUpgrade={handleUpgrade} />
+							)}
+
+							{proConnected.length > 0 && (
+								<div className="flex flex-col gap-3 mb-6">
+									<span
+										className={cn(
+											dmSans125ClassName(),
+											"font-semibold text-[16px] text-[#FAFAFA]",
+										)}
+									>
+										Connected
+									</span>
+									{proConnected.map((plugin) => (
+										<ConnectedPluginRow
+											key={plugin.id}
+											plugin={plugin}
+											info={PLUGIN_CATALOG[plugin.pluginId]}
+											onRevoke={handleRevoke}
+										/>
+									))}
+								</div>
+							)}
+
+							<div className="flex flex-col gap-3">
+								<span
+									className={cn(
+										dmSans125ClassName(),
+										"font-semibold text-[16px] text-[#FAFAFA]",
+									)}
+								>
+									{proConnected.length > 0 ? "Add more" : "Available plugins"}
+								</span>
+								<div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+									{proPluginIds.map((pluginId) => {
+										const plugin = PLUGIN_CATALOG[pluginId]
+										if (!plugin) return null
+										const isConnected = connectedPluginIds.includes(pluginId)
+										const isCurrentlyConnecting = connectingPlugin === pluginId
+										const needsProUpgrade = !hasProProduct
+										return (
+											<PluginCard
+												key={pluginId}
+												plugin={plugin}
+												pluginId={pluginId}
+												isConnected={isConnected}
+												isCurrentlyConnecting={isCurrentlyConnecting}
+												connectingPlugin={connectingPlugin}
+												needsProUpgrade={needsProUpgrade}
+												onConnect={(id) => createPluginKeyMutation.mutate(id)}
+												onUpgrade={handleUpgrade}
+											/>
+										)
+									})}
+								</div>
+							</div>
+						</TabsContent>
+					</Tabs>
+				)}
 			</div>
 
-			{/* API Key modal */}
 			<Dialog
 				open={newKey.open}
 				onOpenChange={(open) =>

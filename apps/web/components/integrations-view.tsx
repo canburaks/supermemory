@@ -48,8 +48,7 @@ const cards: IntegrationCardDef[] = [
 		id: "plugins",
 		title: "Plugins",
 		description:
-			"Claude Code, OpenCode, Hermes, and other AI tool integrations",
-		pro: true,
+			"Hermes on every plan; Claude Code, OpenCode, OpenClaw, and more with Pro",
 		icon: (
 			<div className="flex items-center -space-x-1.5">
 				<Image
