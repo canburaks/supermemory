@@ -105,12 +105,16 @@ app.all("/mcp/*", async (c) => {
 	const token = authHeader?.replace(/^Bearer\s+/i, "")
 	const containerTag = c.req.header("x-sm-project")
 	const apiUrl = c.env.API_URL || DEFAULT_API_URL
+	const mcpURL =
+		c.env.API_URL === "http://localhost:8787"
+			? "http://localhost:8788"
+			: "https://mcp.supermemory.ai"
 
 	if (!token) {
 		return new Response("Unauthorized", {
 			status: 401,
 			headers: {
-				"WWW-Authenticate": `Bearer resource_metadata="/.well-known/oauth-protected-resource"`,
+				"WWW-Authenticate": `Bearer resource_metadata="${mcpURL}/.well-known/oauth-protected-resource"`,
 				"Access-Control-Expose-Headers": "WWW-Authenticate",
 			},
 		})
@@ -149,7 +153,7 @@ app.all("/mcp/*", async (c) => {
 				status: 401,
 				headers: {
 					"Content-Type": "application/json",
-					"WWW-Authenticate": `Bearer error="invalid_token", resource_metadata="/.well-known/oauth-protected-resource"`,
+					"WWW-Authenticate": `Bearer error="invalid_token", resource_metadata="${mcpURL}/.well-known/oauth-protected-resource"`,
 					"Access-Control-Expose-Headers": "WWW-Authenticate",
 				},
 			},

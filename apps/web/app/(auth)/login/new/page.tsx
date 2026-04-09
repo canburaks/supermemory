@@ -1,6 +1,6 @@
 "use client"
 
-import { signIn } from "@lib/auth"
+import { signIn, useSession } from "@lib/auth"
 import { usePostHog } from "@lib/posthog"
 import { TextSeparator } from "@ui/components/text-separator"
 import { ExternalAuthButton } from "@ui/button/external-auth"
@@ -17,6 +17,21 @@ import { motion } from "motion/react"
 import { dmSansClassName } from "@/lib/fonts"
 import { cn } from "@lib/utils"
 import { Logo } from "@ui/assets/Logo"
+
+function isMcpOAuthAuthorizeContext(sp: Pick<URLSearchParams, "get">): boolean {
+	return sp.get("response_type") === "code" && Boolean(sp.get("client_id"))
+}
+
+function buildMcpAuthorizeResumeUrl(
+	sp: Pick<URLSearchParams, "toString">,
+): string {
+	const backend =
+		process.env.NEXT_PUBLIC_BACKEND_URL ?? "https://api.supermemory.ai"
+	const p = new URLSearchParams(sp.toString())
+	p.delete("redirect")
+	p.delete("error")
+	return `${backend}/api/auth/mcp/authorize?${p.toString()}`
+}
 
 function AnimatedGradientBackground() {
 	return (
@@ -90,6 +105,17 @@ export default function LoginPage() {
 	const posthog = usePostHog()
 
 	const params = useSearchParams()
+	const { data: sessionData, isPending: sessionPending } = useSession()
+
+	const oauthQueryForResume = params.toString()
+
+	useEffect(() => {
+		if (sessionPending) return
+		if (!sessionData?.session) return
+		const sp = new URLSearchParams(oauthQueryForResume)
+		if (!isMcpOAuthAuthorizeContext(sp)) return
+		window.location.assign(buildMcpAuthorizeResumeUrl(sp))
+	}, [sessionPending, sessionData?.session, oauthQueryForResume])
 
 	// Get redirect URL from query params
 	const redirectUrl = params.get("redirect")
@@ -97,6 +123,11 @@ export default function LoginPage() {
 	// Create callback URL that includes redirect parameter if provided
 	const getCallbackURL = () => {
 		const origin = window.location.origin
+
+		if (isMcpOAuthAuthorizeContext(params)) {
+			return buildMcpAuthorizeResumeUrl(params)
+		}
+
 		let finalUrl: URL
 
 		if (redirectUrl) {
