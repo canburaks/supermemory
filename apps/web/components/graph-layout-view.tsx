@@ -42,7 +42,7 @@ export const GraphLayoutView = memo<GraphLayoutViewProps>(({ isChatOpen }) => {
 					variant="consumer"
 					highlightDocumentIds={allHighlightDocumentIds}
 					highlightsVisible={isChatOpen}
-					maxNodes={200}
+					maxNodes={undefined}
 					canvasRef={canvasRef}
 				/>
 			</div>

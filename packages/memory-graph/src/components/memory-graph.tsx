@@ -185,17 +185,56 @@ export function MemoryGraph({
 		// Drag end handled by InputHandler
 	}, [])
 
+	// Load more when user zooms out enough that visible area dwarfs the node extent
+	const loadMoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const loadMoreRef = useRef({ hasMore, isLoadingMore, onLoadMore })
+	loadMoreRef.current = { hasMore, isLoadingMore, onLoadMore }
+
 	const handleViewportChange = useCallback(
 		(zoom: number, popoverVisible: boolean) => {
 			setZoomDisplay(Math.round(zoom * 100))
-			// Only increment viewportVersion (which triggers popover repositioning
-			// via activePopoverPosition useMemo) when a popover is actually visible.
-			// This avoids 60fps React reconciliation during plain panning/zooming.
 			if (popoverVisible) {
 				setViewportVersion((v) => v + 1)
 			}
+
+			const { hasMore: more, isLoadingMore: loading, onLoadMore: load } = loadMoreRef.current
+			if (!more || loading || !load || !viewportRef.current) return
+
+			const vp = viewportRef.current
+			const currentNodes = nodes
+			if (currentNodes.length === 0) return
+
+			const topLeft = vp.screenToWorld(0, 0)
+			const bottomRight = vp.screenToWorld(containerSize.width, containerSize.height)
+			const viewW = bottomRight.x - topLeft.x
+			const viewH = bottomRight.y - topLeft.y
+
+			let minX = Infinity
+			let minY = Infinity
+			let maxX = -Infinity
+			let maxY = -Infinity
+			for (const n of currentNodes) {
+				if (n.x < minX) minX = n.x
+				if (n.y < minY) minY = n.y
+				if (n.x > maxX) maxX = n.x
+				if (n.y > maxY) maxY = n.y
+			}
+
+			const nodeW = maxX - minX || 1
+			const nodeH = maxY - minY || 1
+
+			// Only trigger when the visible area is 3x larger than the node extent
+			// (i.e. user has zoomed out significantly past the data)
+			const zoomedOut = viewW > nodeW * 3 || viewH > nodeH * 3
+
+			if (zoomedOut && !loadMoreTimerRef.current) {
+				loadMoreTimerRef.current = setTimeout(() => {
+					loadMoreTimerRef.current = null
+					loadMoreRef.current.onLoadMore?.()
+				}, 500)
+			}
 		},
-		[],
+		[nodes, containerSize.width, containerSize.height],
 	)
 
 	// Navigation
@@ -509,7 +548,7 @@ export function MemoryGraph({
 			display: "flex",
 			alignItems: "center",
 			justifyContent: "center",
-			backgroundColor: colors.bg,
+			backgroundColor: "transparent",
 			borderRadius: 12,
 		}
 
@@ -535,9 +574,7 @@ export function MemoryGraph({
 		height: "100%",
 		borderRadius: 12,
 		overflow: "hidden",
-		backgroundColor: colors.bg,
-		backgroundImage: `radial-gradient(circle, ${colors.textMuted} 0.5px, transparent 0.5px)`,
-		backgroundSize: "16px 16px",
+		backgroundColor: "transparent",
 	}
 
 	const canvasContainerStyle: React.CSSProperties = {
@@ -576,30 +613,6 @@ export function MemoryGraph({
 				colors={colors}
 			/>
 
-			{!isLoading && hasMore && onLoadMore && (
-				<button
-					type="button"
-					onClick={onLoadMore}
-					style={{
-						position: "absolute",
-						top: 16,
-						right: 16,
-						zIndex: 30,
-						borderRadius: 12,
-						border: `1px solid ${colors.controlBorder}`,
-						backgroundColor: colors.controlBg,
-						color: colors.textSecondary,
-						paddingLeft: 16,
-						paddingRight: 16,
-						paddingTop: 8,
-						paddingBottom: 8,
-						fontSize: 13,
-						cursor: "pointer",
-					}}
-				>
-					{isLoadingMore ? "Loading..." : "Load more"}
-				</button>
-			)}
 
 			{!isLoading && !nodes.some((n) => n.type === "document") && children && (
 				<div style={emptyStateStyle}>{children}</div>

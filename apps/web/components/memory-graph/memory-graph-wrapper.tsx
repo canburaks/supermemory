@@ -27,7 +27,7 @@ export function MemoryGraph({
 	error: externalError = null,
 	variant = "console",
 	containerTags,
-	maxNodes = 200,
+	maxNodes,
 	canvasRef,
 	...rest
 }: MemoryGraphWrapperProps) {
@@ -59,7 +59,7 @@ export function MemoryGraph({
 	})
 
 	return (
-		<div ref={containerRef} className="w-full h-full">
+		<div ref={containerRef} className="w-full h-full [&>div]:!bg-none">
 			<MemoryGraphBase
 				documents={documents}
 				isLoading={externalIsLoading || apiIsLoading}
@@ -71,6 +71,10 @@ export function MemoryGraph({
 				maxNodes={maxNodes}
 				canvasRef={canvasRef}
 				totalCount={totalCount}
+				colors={{
+					bg: "transparent",
+					edgeDerives: "#9ca3af",
+				} as any}
 				{...rest}
 			>
 				{children}

@@ -126,10 +126,7 @@ export function useGraphApi(options: UseGraphApiOptions = {}) {
 		},
 		getNextPageParam: (lastPage) => {
 			const { currentPage, totalPages } = lastPage.pagination
-			if (currentPage < totalPages) {
-				return currentPage + 1
-			}
-			return undefined
+			return currentPage < totalPages ? currentPage + 1 : undefined
 		},
 		staleTime: 30 * 1000,
 		enabled,
