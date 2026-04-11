@@ -1,5 +1,5 @@
 import { cors } from "hono/cors"
-import { Hono } from "hono"
+import { Hono, type Context } from "hono"
 import { SupermemoryMCP } from "./server"
 import { isApiKey, validateApiKey, validateOAuthToken } from "./auth"
 import { initPosthog } from "./posthog"
@@ -109,7 +109,7 @@ const mcpHandler = SupermemoryMCP.serve("/mcp", {
 	},
 })
 
-app.all("/mcp/*", async (c) => {
+const handleMcpRequest = async (c: Context<{ Bindings: Bindings }>) => {
 	const authHeader = c.req.header("Authorization")
 	const token = authHeader?.replace(/^Bearer\s+/i, "")
 	const containerTag = c.req.header("x-sm-project")
@@ -186,7 +186,10 @@ app.all("/mcp/*", async (c) => {
 	} as ExecutionContext & { props: Props }
 
 	return mcpHandler.fetch(c.req.raw, c.env, ctx)
-})
+}
+
+app.all("/mcp", handleMcpRequest)
+app.all("/mcp/*", handleMcpRequest)
 
 // Export the Durable Object class for Cloudflare Workers
 export { SupermemoryMCP }
