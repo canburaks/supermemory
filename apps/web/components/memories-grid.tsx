@@ -76,6 +76,48 @@ type OgData = {
 	image?: string
 }
 
+const ogCache = new Map<string, OgData>()
+const ogInflight = new Map<string, Promise<OgData | null>>()
+const ogFailures = new Map<string, number>()
+const OG_FAILURE_TTL = 30_000
+
+function fetchOgData(url: string): Promise<OgData | null> {
+	const cached = ogCache.get(url)
+	if (cached) return Promise.resolve(cached)
+
+	const failedAt = ogFailures.get(url)
+	if (failedAt && Date.now() - failedAt < OG_FAILURE_TTL) {
+		return Promise.resolve(null)
+	}
+
+	const inflight = ogInflight.get(url)
+	if (inflight) return inflight
+
+	const promise = fetch(`/api/og?url=${encodeURIComponent(url)}`)
+		.then((res) => {
+			if (!res.ok) throw new Error("Failed")
+			return res.json()
+		})
+		.then((data) => {
+			const result: OgData = { title: data?.title, image: data?.image }
+			if (!result.title && !result.image) {
+				throw new Error("Empty metadata")
+			}
+			ogCache.set(url, result)
+			ogInflight.delete(url)
+			ogFailures.delete(url)
+			return result
+		})
+		.catch(() => {
+			ogInflight.delete(url)
+			ogFailures.set(url, Date.now())
+			return null
+		})
+
+	ogInflight.set(url, promise)
+	return promise
+}
+
 const PAGE_SIZE = 100
 const MAX_TOTAL = 1000
 
@@ -682,7 +724,6 @@ const DocumentCard = memo(
 		const [rotation, setRotation] = useState({ rotateX: 0, rotateY: 0 })
 		const cardRef = useRef<HTMLButtonElement>(null)
 		const [ogData, setOgData] = useState<OgData | null>(null)
-		const [isLoadingOg, setIsLoadingOg] = useState(false)
 
 		const ogImage = (document as DocumentWithMemories & { ogImage?: string })
 			.ogImage
@@ -699,27 +740,31 @@ const DocumentCard = memo(
 		const hideURL = document.url?.includes("docs.googleapis.com")
 
 		useEffect(() => {
-			if (needsOgData && !ogData && !isLoadingOg && document.url) {
-				setIsLoadingOg(true)
-				fetch(`/api/og?url=${encodeURIComponent(document.url)}`)
-					.then((res) => {
-						if (!res.ok) throw new Error("Failed")
-						return res.json()
-					})
-					.then((data) => {
-						setOgData({
-							title: data?.title,
-							image: data?.image,
-						})
-					})
-					.catch(() => {
-						setOgData({})
-					})
-					.finally(() => {
-						setIsLoadingOg(false)
-					})
+			if (!needsOgData || ogData || !document.url) return
+
+			let timeoutId: ReturnType<typeof setTimeout>
+			let mounted = true
+
+			const attemptFetch = () => {
+				if (!mounted || !document.url) return
+				fetchOgData(document.url).then((data) => {
+					if (!mounted) return
+					if (data) {
+						setOgData(data)
+					} else {
+						// Retry when the global TTL expires
+						timeoutId = setTimeout(attemptFetch, 30_000)
+					}
+				})
 			}
-		}, [needsOgData, ogData, isLoadingOg, document.url])
+
+			attemptFetch()
+
+			return () => {
+				mounted = false
+				clearTimeout(timeoutId)
+			}
+		}, [needsOgData, ogData, document.url])
 
 		useEffect(() => {
 			if (isSelectionMode) setRotation({ rotateX: 0, rotateY: 0 })
