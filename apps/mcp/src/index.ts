@@ -60,15 +60,9 @@ app.get("/", (c) => {
 app.get("/.well-known/oauth-protected-resource", (c) => {
 	const apiUrl = c.env.API_URL || DEFAULT_API_URL
 
-	// TODO: commented out because this might be issue with auth as well
-	//const host = c.req.header("x-forwarded-host") || c.req.header("host")
-	//const proto = c.req.header("x-forwarded-proto") || "https"
-	//const resourceUrl = host ? `${proto}://${host}` : "https://mcp.supermemory.ai"
-
-	const resourceUrl =
-		c.env.API_URL === "http://localhost:8787"
-			? "http://localhost:8788"
-			: "https://mcp.supermemory.ai"
+	const host = c.req.header("x-forwarded-host") || c.req.header("host")
+	const proto = c.req.header("x-forwarded-proto") || "https"
+	const resourceUrl = host ? `${proto}://${host}` : "https://mcp.supermemory.ai"
 
 	return c.json({
 		resource: resourceUrl,
@@ -121,18 +115,12 @@ const handleMcpRequest = async (c: Context<{ Bindings: Bindings }>) => {
 	const token = authHeader?.replace(/^Bearer\s+/i, "")
 	const containerTag = c.req.header("x-sm-project")
 	const apiUrl = c.env.API_URL || DEFAULT_API_URL
-	const mcpURL =
-		c.env.API_URL === "http://localhost:8787"
-			? "http://localhost:8788"
-			: "https://mcp.supermemory.ai"
 
-	// TODO: commented out because this might be issue with auth
-	//const reqHost = c.req.header("x-forwarded-host") || c.req.header("host") || ""
-	//const reqProto = c.req.header("x-forwarded-proto") || "https"
-	//const resourceMetadataUrl = reqHost
-	//	? `${reqProto}://${reqHost}/.well-known/oauth-protected-resource`
-	//	: "/.well-known/oauth-protected-resource"
-	const resourceMetadataUrl = `${mcpURL}/.well-known/oauth-protected-resource`
+	const reqHost = c.req.header("x-forwarded-host") || c.req.header("host") || ""
+	const reqProto = c.req.header("x-forwarded-proto") || "https"
+	const resourceMetadataUrl = reqHost
+		? `${reqProto}://${reqHost}/.well-known/oauth-protected-resource`
+		: "/.well-known/oauth-protected-resource"
 
 	if (!token) {
 		return new Response("Unauthorized", {
