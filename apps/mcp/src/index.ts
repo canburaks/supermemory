@@ -59,9 +59,16 @@ app.get("/", (c) => {
 // MCP clients use this to discover the authorization server
 app.get("/.well-known/oauth-protected-resource", (c) => {
 	const apiUrl = c.env.API_URL || DEFAULT_API_URL
-	const host = c.req.header("x-forwarded-host") || c.req.header("host")
-	const proto = c.req.header("x-forwarded-proto") || "https"
-	const resourceUrl = host ? `${proto}://${host}` : "https://mcp.supermemory.ai"
+
+	// TODO: commented out because this might be issue with auth as well
+	//const host = c.req.header("x-forwarded-host") || c.req.header("host")
+	//const proto = c.req.header("x-forwarded-proto") || "https"
+	//const resourceUrl = host ? `${proto}://${host}` : "https://mcp.supermemory.ai"
+
+	const resourceUrl =
+		c.env.API_URL === "http://localhost:8787"
+			? "http://localhost:8788"
+			: "https://mcp.supermemory.ai"
 
 	return c.json({
 		resource: resourceUrl,
