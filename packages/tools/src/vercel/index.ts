@@ -12,6 +12,8 @@ import {
 } from "./middleware"
 import type { PromptTemplate, MemoryPromptData } from "./memory-prompt"
 
+const DEFAULT_MEMORY_RETRIEVAL_TIMEOUT_MS = 5000
+
 interface WrapVercelLanguageModelOptions {
 	/** Optional conversation ID to group messages for contextual memory generation */
 	conversationId?: string
@@ -51,9 +53,9 @@ interface WrapVercelLanguageModelOptions {
 	 */
 	promptTemplate?: PromptTemplate
 	/**
-	 * When Supermemory memory retrieval / injection fails:
-	 * - `false` (default): propagate the error.
-	 * - `true`: log and call the base model with the original prompt (no memories).
+	 * When Supermemory memory retrieval / injection fails or times out:
+	 * - `true` (default): log and call the base model with the original prompt (no memories).
+	 * - `false`: propagate the error (fail closed on memory).
 	 */
 	skipMemoryOnError?: boolean
 }
@@ -64,7 +66,8 @@ interface WrapVercelLanguageModelOptions {
  *
  * This wrapper searches the supermemory API for relevant memories using the container tag
  * and user message, then either appends memories to an existing system prompt or creates
- * a new system prompt with the memories.
+ * a new system prompt with the memories. Pre-LLM profile retrieval uses a fixed internal
+ * time budget and cannot be configured via options.
  *
  * Supports both Vercel AI SDK 5 (LanguageModelV2) and SDK 6 (LanguageModelV3) via runtime
  * detection of `model.specificationVersion`.
@@ -78,7 +81,7 @@ interface WrapVercelLanguageModelOptions {
  * @param options.addMemory - Optional mode for memory search: "always", "never" (default: "never")
  * @param options.apiKey - Optional Supermemory API key to use instead of the environment variable
  * @param options.baseUrl - Optional base URL for the Supermemory API (default: "https://api.supermemory.ai")
- * @param options.skipMemoryOnError - When memory retrieval fails: `false` (default) throws; `true` continues without injected memories
+ * @param options.skipMemoryOnError - When memory retrieval fails or times out: `true` (default) continues without injected memories; `false` throws
  *
  * @returns A wrapped language model that automatically includes relevant memories in prompts
  *
@@ -100,7 +103,7 @@ interface WrapVercelLanguageModelOptions {
  * ```
  *
  * @throws {Error} When neither `options.apiKey` nor `process.env.SUPERMEMORY_API_KEY` are set
- * @throws {Error} When supermemory memory retrieval fails unless `skipMemoryOnError` is `true`
+ * @throws {Error} When supermemory memory retrieval fails and `skipMemoryOnError` is `false`
  */
 const wrapVercelLanguageModel = <T extends LanguageModel>(
 	model: T,
@@ -124,9 +127,10 @@ const wrapVercelLanguageModel = <T extends LanguageModel>(
 		addMemory: options?.addMemory ?? "never",
 		baseUrl: options?.baseUrl,
 		promptTemplate: options?.promptTemplate,
+		memoryRetrievalTimeoutMs: DEFAULT_MEMORY_RETRIEVAL_TIMEOUT_MS,
 	})
 
-	const skipMemoryOnError = options?.skipMemoryOnError ?? false
+	const skipMemoryOnError = options?.skipMemoryOnError ?? true
 
 	// Proxy keeps prototype/getter fields (e.g. provider, modelId) that `{ ...model }` drops.
 	return new Proxy(model, {

@@ -188,6 +188,8 @@ interface SupermemoryMiddlewareOptions {
 	baseUrl?: string
 	/** Custom function to format memory data into the system prompt */
 	promptTemplate?: PromptTemplate
+	/** Max wait (ms) for the pre-LLM `/v4/profile` retrieval. Omit for no limit (e.g. tests). `withSupermemory` sets this internally. */
+	memoryRetrievalTimeoutMs?: number
 }
 
 interface SupermemoryMiddlewareContext {
@@ -200,6 +202,7 @@ interface SupermemoryMiddlewareContext {
 	normalizedBaseUrl: string
 	apiKey: string
 	promptTemplate?: PromptTemplate
+	memoryRetrievalTimeoutMs?: number
 	/**
 	 * Per-turn memory cache. Stores the injected memories string for each
 	 * user turn (keyed by turnKey) to avoid redundant API calls during tool-call
@@ -219,6 +222,7 @@ export const createSupermemoryContext = (
 		addMemory = "never",
 		baseUrl,
 		promptTemplate,
+		memoryRetrievalTimeoutMs,
 	} = options
 
 	const logger = createLogger(verbose)
@@ -241,6 +245,9 @@ export const createSupermemoryContext = (
 		normalizedBaseUrl,
 		apiKey,
 		promptTemplate,
+		...(memoryRetrievalTimeoutMs !== undefined
+			? { memoryRetrievalTimeoutMs }
+			: {}),
 		memoryCache: new MemoryCache<string>(),
 	}
 }
@@ -304,15 +311,32 @@ export const transformParamsWithMemory = async (
 
 	const queryText = extractQueryText(params, ctx.mode)
 
-	const memories = await buildMemoriesText({
-		containerTag: ctx.containerTag,
-		queryText,
-		mode: ctx.mode,
-		baseUrl: ctx.normalizedBaseUrl,
-		apiKey: ctx.apiKey,
-		logger: ctx.logger,
-		promptTemplate: ctx.promptTemplate,
-	})
+	let fetchSignal: AbortSignal | undefined
+	let timeoutId: ReturnType<typeof setTimeout> | undefined
+	const timeoutMs = ctx.memoryRetrievalTimeoutMs
+	if (timeoutMs !== undefined && timeoutMs > 0) {
+		const controller = new AbortController()
+		fetchSignal = controller.signal
+		timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+	}
+
+	let memories: string
+	try {
+		memories = await buildMemoriesText({
+			containerTag: ctx.containerTag,
+			queryText,
+			mode: ctx.mode,
+			baseUrl: ctx.normalizedBaseUrl,
+			apiKey: ctx.apiKey,
+			logger: ctx.logger,
+			promptTemplate: ctx.promptTemplate,
+			...(fetchSignal ? { signal: fetchSignal } : {}),
+		})
+	} finally {
+		if (timeoutId !== undefined) {
+			clearTimeout(timeoutId)
+		}
+	}
 
 	ctx.memoryCache.set(turnKey, memories)
 	ctx.logger.debug("Cached memories for turn", { turnKey })

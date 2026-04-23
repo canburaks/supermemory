@@ -578,7 +578,8 @@ describe.skipIf(!shouldRunIntegration)(
 			})
 
 			it("should handle invalid API key gracefully", async () => {
-				const { model } = createIntegrationMockModel()
+				const { model, getCapturedGenerateParams } =
+					createIntegrationMockModel()
 
 				const wrapped = withSupermemory(
 					model,
@@ -589,12 +590,38 @@ describe.skipIf(!shouldRunIntegration)(
 					},
 				)
 
+				await wrapped.doGenerate({
+					prompt: [
+						{
+							role: "user",
+							content: [{ type: "text", text: "Invalid key test" }],
+						},
+					],
+				})
+
+				const captured = getCapturedGenerateParams()
+				expect(captured?.prompt[0]?.role).toBe("user")
+			})
+
+			it("should reject on invalid API key when skipMemoryOnError is false", async () => {
+				const { model } = createIntegrationMockModel()
+
+				const wrapped = withSupermemory(
+					model,
+					INTEGRATION_CONFIG.containerTag,
+					{
+						apiKey: "invalid-api-key-12345",
+						mode: "profile",
+						skipMemoryOnError: false,
+					},
+				)
+
 				await expect(
 					wrapped.doGenerate({
 						prompt: [
 							{
 								role: "user",
-								content: [{ type: "text", text: "Invalid key test" }],
+								content: [{ type: "text", text: "Invalid key strict test" }],
 							},
 						],
 					}),

@@ -383,4 +383,115 @@ describe("Unit: withSupermemory", () => {
 			).toBe("Last")
 		})
 	})
+
+	describe("Wrapper retrieval resilience", () => {
+		let fetchMock: ReturnType<typeof vi.fn>
+
+		beforeEach(() => {
+			process.env.SUPERMEMORY_API_KEY = "test-key"
+			fetchMock = vi.fn()
+			globalThis.fetch = fetchMock as unknown as typeof fetch
+			vi.clearAllMocks()
+		})
+
+		it("continues without memories when profile fetch fails (default skip)", async () => {
+			fetchMock.mockResolvedValue({
+				ok: false,
+				status: 500,
+				statusText: "Internal Server Error",
+				text: () => Promise.resolve("err"),
+			})
+
+			const inner = createMockLanguageModel()
+			vi.mocked(inner.doGenerate).mockResolvedValue({
+				content: [{ type: "text", text: "ok" }],
+				finishReason: "stop",
+				usage: {
+					inputTokens: 1,
+					outputTokens: 1,
+				},
+				rawCall: { rawPrompt: [], rawSettings: {} },
+				warnings: [],
+			})
+
+			const wrapped = withSupermemory(inner, TEST_CONFIG.containerTag, {
+				apiKey: "k",
+			})
+
+			const params: LanguageModelV2CallOptions = {
+				prompt: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+			}
+
+			await wrapped.doGenerate(params)
+
+			expect(inner.doGenerate).toHaveBeenCalledWith(params)
+		})
+
+		it("throws when skipMemoryOnError is false and profile fetch fails", async () => {
+			fetchMock.mockResolvedValue({
+				ok: false,
+				status: 500,
+				statusText: "Internal Server Error",
+				text: () => Promise.resolve("err"),
+			})
+
+			const inner = createMockLanguageModel()
+			const wrapped = withSupermemory(inner, TEST_CONFIG.containerTag, {
+				apiKey: "k",
+				skipMemoryOnError: false,
+			})
+
+			await expect(
+				wrapped.doGenerate({
+					prompt: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+				}),
+			).rejects.toThrow("Supermemory profile search failed")
+		})
+
+		it("aborts slow profile fetch after internal timeout and continues by default", async () => {
+			fetchMock.mockImplementation((_url: string, init?: RequestInit) => {
+				return new Promise((_resolve, reject) => {
+					const sig = init?.signal
+					if (!sig) return
+					if (sig.aborted) {
+						reject(new DOMException("Aborted", "AbortError"))
+						return
+					}
+					sig.addEventListener("abort", () => {
+						reject(new DOMException("Aborted", "AbortError"))
+					})
+				})
+			})
+
+			const inner = createMockLanguageModel()
+			vi.mocked(inner.doGenerate).mockResolvedValue({
+				content: [{ type: "text", text: "ok" }],
+				finishReason: "stop",
+				usage: {
+					inputTokens: 1,
+					outputTokens: 1,
+				},
+				rawCall: { rawPrompt: [], rawSettings: {} },
+				warnings: [],
+			})
+
+			const wrapped = withSupermemory(inner, TEST_CONFIG.containerTag, {
+				apiKey: "k",
+			})
+
+			vi.useFakeTimers()
+			try {
+				const params: LanguageModelV2CallOptions = {
+					prompt: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+				}
+				const genPromise = wrapped.doGenerate(params)
+				await vi.advanceTimersByTimeAsync(5000)
+				await genPromise
+
+				expect(inner.doGenerate).toHaveBeenCalledWith(params)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+	})
 })

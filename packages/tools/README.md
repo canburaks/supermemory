@@ -656,6 +656,9 @@ interface WithSupermemoryOptions {
   addMemory?: "always" | "never"
   /** Optional Supermemory API key. Use this in browser environments. */
   apiKey?: string
+  baseUrl?: string
+  promptTemplate?: (data: MemoryPromptData) => string
+  skipMemoryOnError?: boolean
 }
 ```
 
@@ -663,6 +666,7 @@ interface WithSupermemoryOptions {
 - **verbose**: Enable detailed logging of memory search and injection process (default: false)
 - **mode**: Memory search mode - "profile" (default), "query", or "full"
 - **addMemory**: Automatic memory storage mode - "always" or "never" (default: "never")
+- **skipMemoryOnError**: If memory retrieval fails or hits the internal timeout, continue with the original prompt (default: true)
 
 ## Available Tools
 
