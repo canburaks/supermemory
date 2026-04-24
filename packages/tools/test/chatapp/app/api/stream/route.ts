@@ -8,6 +8,7 @@ const SUPERMEMORY_USER_ID = "user-1"
 const gatewayModel = gateway("google/gemini-2.5-flash")
 
 const supermemoryOptions = {
+	containerTag: SUPERMEMORY_USER_ID,
 	apiKey: process.env.SUPERMEMORY_API_KEY ?? "",
 	mode: "full" as const,
 	addMemory: "always" as const,
@@ -31,11 +32,7 @@ export async function POST(req: Request) {
 			})
 		: gatewayModel
 
-	const model = withSupermemory(
-		innerModel,
-		SUPERMEMORY_USER_ID,
-		supermemoryOptions,
-	)
+	const model = withSupermemory(innerModel, supermemoryOptions)
 
 	const result = streamText({
 		model,

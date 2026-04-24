@@ -73,7 +73,7 @@ describe("Unit: withSupermemory", () => {
 			const mockModel = createMockLanguageModel()
 
 			expect(() => {
-				withSupermemory(mockModel, TEST_CONFIG.containerTag)
+				withSupermemory(mockModel, { containerTag: TEST_CONFIG.containerTag })
 			}).toThrow("SUPERMEMORY_API_KEY is not set")
 		})
 
@@ -81,7 +81,9 @@ describe("Unit: withSupermemory", () => {
 			process.env.SUPERMEMORY_API_KEY = "test-key"
 
 			const mockModel = createMockLanguageModel()
-			const wrappedModel = withSupermemory(mockModel, TEST_CONFIG.containerTag)
+			const wrappedModel = withSupermemory(mockModel, {
+				containerTag: TEST_CONFIG.containerTag,
+			})
 
 			expect(wrappedModel).toBeDefined()
 			expect(wrappedModel.specificationVersion).toBe("v2")
@@ -99,7 +101,9 @@ describe("Unit: withSupermemory", () => {
 				doStream: vi.fn(),
 			}
 			const inner = Object.create(proto) as LanguageModelV2
-			const wrappedModel = withSupermemory(inner, TEST_CONFIG.containerTag)
+			const wrappedModel = withSupermemory(inner, {
+				containerTag: TEST_CONFIG.containerTag,
+			})
 
 			expect(wrappedModel.specificationVersion).toBe("v2")
 			expect(wrappedModel.provider).toBe("gateway")
@@ -414,7 +418,8 @@ describe("Unit: withSupermemory", () => {
 				warnings: [],
 			})
 
-			const wrapped = withSupermemory(inner, TEST_CONFIG.containerTag, {
+			const wrapped = withSupermemory(inner, {
+				containerTag: TEST_CONFIG.containerTag,
 				apiKey: "k",
 			})
 
@@ -436,7 +441,8 @@ describe("Unit: withSupermemory", () => {
 			})
 
 			const inner = createMockLanguageModel()
-			const wrapped = withSupermemory(inner, TEST_CONFIG.containerTag, {
+			const wrapped = withSupermemory(inner, {
+				containerTag: TEST_CONFIG.containerTag,
 				apiKey: "k",
 				skipMemoryOnError: false,
 			})
@@ -475,7 +481,8 @@ describe("Unit: withSupermemory", () => {
 				warnings: [],
 			})
 
-			const wrapped = withSupermemory(inner, TEST_CONFIG.containerTag, {
+			const wrapped = withSupermemory(inner, {
+				containerTag: TEST_CONFIG.containerTag,
 				apiKey: "k",
 			})
 

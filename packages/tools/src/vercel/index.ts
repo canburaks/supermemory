@@ -15,6 +15,8 @@ import type { PromptTemplate, MemoryPromptData } from "./memory-prompt"
 const DEFAULT_MEMORY_RETRIEVAL_TIMEOUT_MS = 5000
 
 interface WrapVercelLanguageModelOptions {
+	/** The container tag/identifier for memory search (e.g., user ID, project ID) */
+	containerTag: string
 	/** Optional conversation ID to group messages for contextual memory generation */
 	conversationId?: string
 	/** Enable detailed logging of memory search and injection */
@@ -73,8 +75,8 @@ interface WrapVercelLanguageModelOptions {
  * detection of `model.specificationVersion`.
  *
  * @param model - The language model to wrap with supermemory capabilities (V2 or V3)
- * @param containerTag - The container tag/identifier for memory search (e.g., user ID, project ID)
- * @param options - Optional configuration options for the middleware
+ * @param options - Configuration options for Supermemory integration
+ * @param options.containerTag - Required. The container tag/identifier for memory search (e.g., user ID, project ID)
  * @param options.conversationId - Optional conversation ID to group messages into a single document for contextual memory generation
  * @param options.verbose - Optional flag to enable detailed logging of memory search and injection process (default: false)
  * @param options.mode - Optional mode for memory search: "profile", "query", or "full" (default: "profile")
@@ -90,7 +92,8 @@ interface WrapVercelLanguageModelOptions {
  * import { withSupermemory } from "@supermemory/tools/ai-sdk"
  * import { openai } from "@ai-sdk/openai"
  *
- * const modelWithMemory = withSupermemory(openai("gpt-4"), "user-123", {
+ * const modelWithMemory = withSupermemory(openai("gpt-4"), {
+ *   containerTag: "user-123",
  *   conversationId: "conversation-456",
  *   mode: "full",
  *   addMemory: "always"
@@ -107,10 +110,9 @@ interface WrapVercelLanguageModelOptions {
  */
 const wrapVercelLanguageModel = <T extends LanguageModel>(
 	model: T,
-	containerTag: string,
-	options?: WrapVercelLanguageModelOptions,
+	options: WrapVercelLanguageModelOptions,
 ): T => {
-	const providedApiKey = options?.apiKey ?? process.env.SUPERMEMORY_API_KEY
+	const providedApiKey = options.apiKey ?? process.env.SUPERMEMORY_API_KEY
 
 	if (!providedApiKey) {
 		throw new Error(
@@ -119,18 +121,18 @@ const wrapVercelLanguageModel = <T extends LanguageModel>(
 	}
 
 	const ctx = createSupermemoryContext({
-		containerTag,
+		containerTag: options.containerTag,
 		apiKey: providedApiKey,
-		conversationId: options?.conversationId,
-		verbose: options?.verbose ?? false,
-		mode: options?.mode ?? "profile",
-		addMemory: options?.addMemory ?? "never",
-		baseUrl: options?.baseUrl,
-		promptTemplate: options?.promptTemplate,
+		conversationId: options.conversationId,
+		verbose: options.verbose ?? false,
+		mode: options.mode ?? "profile",
+		addMemory: options.addMemory ?? "never",
+		baseUrl: options.baseUrl,
+		promptTemplate: options.promptTemplate,
 		memoryRetrievalTimeoutMs: DEFAULT_MEMORY_RETRIEVAL_TIMEOUT_MS,
 	})
 
-	const skipMemoryOnError = options?.skipMemoryOnError ?? true
+	const skipMemoryOnError = options.skipMemoryOnError ?? true
 
 	// Proxy keeps prototype/getter fields (e.g. provider, modelId) that `{ ...model }` drops.
 	return new Proxy(model, {

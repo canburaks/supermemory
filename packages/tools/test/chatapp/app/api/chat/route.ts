@@ -1,7 +1,8 @@
 import { gateway, streamText, type ModelMessage } from "ai"
 import { withSupermemory } from "@supermemory/tools/ai-sdk"
 
-const model = withSupermemory(gateway("google/gemini-2.5-flash"), "user-1", {
+const model = withSupermemory(gateway("google/gemini-2.5-flash"), {
+	containerTag: "user-1",
 	apiKey: process.env.SUPERMEMORY_API_KEY ?? "",
 	mode: "full",
 	addMemory: "always",
