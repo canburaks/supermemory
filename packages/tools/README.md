@@ -414,7 +414,7 @@ const addResult = await tools.addMemory({
 
 Add persistent memory to [Mastra](https://mastra.ai) AI agents. The integration provides processors that:
 - **Input Processor**: Fetches relevant memories and injects them into the system prompt before LLM calls
-- **Output Processor**: Optionally saves conversations to Supermemory after responses
+- **Output Processor**: Saves conversations to Supermemory after responses (enabled by default)
 
 #### Quick Start with `withSupermemory` Wrapper
 
@@ -433,11 +433,10 @@ const agent = new Agent(withSupermemory(
     model: openai("gpt-4o"),
     instructions: "You are a helpful assistant.",
   },
-  "user-123",  // containerTag - scopes memories to this user
   {
+    containerTag: "user-123",  // Required: scopes memories to this user
+    customId: "conv-456",      // Required: groups messages for contextual memory
     mode: "full",
-    addMemory: "always",
-    threadId: "conv-456",
   }
 ))
 
@@ -454,10 +453,10 @@ import { Agent } from "@mastra/core/agent"
 import { createSupermemoryProcessors } from "@supermemory/tools/mastra"
 import { openai } from "@ai-sdk/openai"
 
-const { input, output } = createSupermemoryProcessors("user-123", {
+const { input, output } = createSupermemoryProcessors({
+  containerTag: "user-123",
+  customId: "conv-456",
   mode: "full",
-  addMemory: "always",
-  threadId: "conv-456",
   verbose: true, // Enable logging
 })
 
@@ -484,12 +483,12 @@ import { openai } from "@ai-sdk/openai"
 
 async function main() {
   const userId = "user-alex-123"
-  const threadId = `thread-${Date.now()}`
+  const customId = `thread-${Date.now()}`
 
-  const { input, output } = createSupermemoryProcessors(userId, {
+  const { input, output } = createSupermemoryProcessors({
+    containerTag: userId,
+    customId,
     mode: "profile",      // Fetch user profile memories
-    addMemory: "always",  // Save all conversations
-    threadId,
     verbose: true,
   })
 
@@ -525,13 +524,25 @@ main()
 
 ```typescript
 // Profile mode - good for general personalization
-const { input } = createSupermemoryProcessors("user-123", { mode: "profile" })
+const { input } = createSupermemoryProcessors({
+  containerTag: "user-123",
+  customId: "conv-456",
+  mode: "profile",
+})
 
 // Query mode - good for specific lookups
-const { input } = createSupermemoryProcessors("user-123", { mode: "query" })
+const { input } = createSupermemoryProcessors({
+  containerTag: "user-123",
+  customId: "conv-456",
+  mode: "query",
+})
 
 // Full mode - comprehensive context
-const { input } = createSupermemoryProcessors("user-123", { mode: "full" })
+const { input } = createSupermemoryProcessors({
+  containerTag: "user-123",
+  customId: "conv-456",
+  mode: "full",
+})
 ```
 
 #### Custom Prompt Templates
@@ -548,7 +559,9 @@ ${data.generalSearchMemories}
 </user_context>
 `.trim()
 
-const { input, output } = createSupermemoryProcessors("user-123", {
+const { input, output } = createSupermemoryProcessors({
+  containerTag: "user-123",
+  customId: "conv-456",
   mode: "full",
   promptTemplate: customTemplate,
 })
@@ -556,17 +569,17 @@ const { input, output } = createSupermemoryProcessors("user-123", {
 
 #### Using RequestContext for Dynamic Thread IDs
 
-Instead of hardcoding `threadId`, use Mastra's RequestContext for dynamic values:
+For server setups where one agent instance handles multiple concurrent conversations, use Mastra's `RequestContext` to provide per-request thread IDs. **RequestContext takes precedence** over the construction-time `customId`:
 
 ```typescript
 import { Agent } from "@mastra/core/agent"
 import { RequestContext, MASTRA_THREAD_ID_KEY } from "@mastra/core/request-context"
 import { createSupermemoryProcessors } from "@supermemory/tools/mastra"
 
-const { input, output } = createSupermemoryProcessors("user-123", {
+const { input, output } = createSupermemoryProcessors({
+  containerTag: "user-123",
+  customId: "fallback-conv",  // Used only when RequestContext doesn't provide a threadId
   mode: "profile",
-  addMemory: "always",
-  // threadId not set here - will be read from RequestContext
 })
 
 const agent = new Agent({
@@ -577,22 +590,26 @@ const agent = new Agent({
   outputProcessors: [output],
 })
 
-// Set threadId dynamically per request
+// Per-request threadId takes precedence over customId
 const ctx = new RequestContext()
-ctx.set(MASTRA_THREAD_ID_KEY, "dynamic-thread-123")
+ctx.set(MASTRA_THREAD_ID_KEY, "user-456-session-789")
 
 const response = await agent.generate("Hello!", { requestContext: ctx })
+// This conversation is stored under "user-456-session-789", not "fallback-conv"
 ```
+
+> **Server-side usage**: Always use `RequestContext` to pass unique conversation IDs per request. Using a fixed `customId` for all requests will merge conversations from different users.
 
 #### Mastra Configuration Options
 
 ```typescript
 interface SupermemoryMastraOptions {
+  containerTag: string         // Required: User/container tag for scoping memories
+  customId: string             // Required: Groups messages into a single document for contextual memory
   apiKey?: string              // Supermemory API key (or use SUPERMEMORY_API_KEY env var)
   baseUrl?: string             // Custom API endpoint
   mode?: "profile" | "query" | "full"  // Memory search mode (default: "profile")
-  addMemory?: "always" | "never"       // Auto-save conversations (default: "never")
-  threadId?: string            // Conversation ID for grouping messages
+  addMemory?: "always" | "never"       // Auto-save conversations (default: "always")
   verbose?: boolean            // Enable debug logging (default: false)
   promptTemplate?: (data: MemoryPromptData) => string  // Custom memory formatting
 }
