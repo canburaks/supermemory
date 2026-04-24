@@ -73,8 +73,32 @@ describe("Unit: withSupermemory", () => {
 			const mockModel = createMockLanguageModel()
 
 			expect(() => {
-				withSupermemory(mockModel, { containerTag: TEST_CONFIG.containerTag })
+				withSupermemory(mockModel, {
+					containerTag: TEST_CONFIG.containerTag,
+					customId: "test-id",
+				})
 			}).toThrow("SUPERMEMORY_API_KEY is not set")
+		})
+
+		it("should throw error if customId is missing or empty", () => {
+			process.env.SUPERMEMORY_API_KEY = "test-key"
+
+			const mockModel = createMockLanguageModel()
+
+			// omitted customId (plain JS caller)
+			expect(() => {
+				withSupermemory(mockModel, {
+					containerTag: TEST_CONFIG.containerTag,
+				} as any)
+			}).toThrow("customId is required")
+
+			// empty string
+			expect(() => {
+				withSupermemory(mockModel, {
+					containerTag: TEST_CONFIG.containerTag,
+					customId: "",
+				})
+			}).toThrow("customId is required")
 		})
 
 		it("should successfully create wrapped model with valid API key", () => {
@@ -83,6 +107,7 @@ describe("Unit: withSupermemory", () => {
 			const mockModel = createMockLanguageModel()
 			const wrappedModel = withSupermemory(mockModel, {
 				containerTag: TEST_CONFIG.containerTag,
+				customId: "test-id",
 			})
 
 			expect(wrappedModel).toBeDefined()
@@ -103,6 +128,7 @@ describe("Unit: withSupermemory", () => {
 			const inner = Object.create(proto) as LanguageModelV2
 			const wrappedModel = withSupermemory(inner, {
 				containerTag: TEST_CONFIG.containerTag,
+				customId: "test-id",
 			})
 
 			expect(wrappedModel.specificationVersion).toBe("v2")
@@ -129,6 +155,7 @@ describe("Unit: withSupermemory", () => {
 			const ctx = createSupermemoryContext({
 				containerTag: TEST_CONFIG.containerTag,
 				apiKey: TEST_CONFIG.apiKey,
+				customId: "test-id",
 				mode: "profile",
 			})
 
@@ -144,7 +171,7 @@ describe("Unit: withSupermemory", () => {
 			await transformParamsWithMemory(params, ctx)
 
 			expect(ctx.memoryCache).toBeDefined()
-			const turnKey = `${TEST_CONFIG.containerTag}::profile:Hello`
+			const turnKey = `${TEST_CONFIG.containerTag}:test-id:profile:Hello`
 			const cachedMemories = ctx.memoryCache.get(turnKey)
 			expect(cachedMemories).toBeDefined()
 			expect(cachedMemories).toContain("Cached memory")
@@ -161,6 +188,7 @@ describe("Unit: withSupermemory", () => {
 			const ctx = createSupermemoryContext({
 				containerTag: TEST_CONFIG.containerTag,
 				apiKey: TEST_CONFIG.apiKey,
+				customId: "test-id",
 				mode: "profile",
 			})
 
@@ -233,6 +261,7 @@ describe("Unit: withSupermemory", () => {
 			const ctx = createSupermemoryContext({
 				containerTag: TEST_CONFIG.containerTag,
 				apiKey: TEST_CONFIG.apiKey,
+				customId: "test-id",
 				mode: "profile",
 			})
 
@@ -293,6 +322,7 @@ describe("Unit: withSupermemory", () => {
 			const ctx = createSupermemoryContext({
 				containerTag: TEST_CONFIG.containerTag,
 				apiKey: TEST_CONFIG.apiKey,
+				customId: "test-id",
 				mode: "profile",
 			})
 
@@ -314,6 +344,7 @@ describe("Unit: withSupermemory", () => {
 			const ctx = createSupermemoryContext({
 				containerTag: TEST_CONFIG.containerTag,
 				apiKey: TEST_CONFIG.apiKey,
+				customId: "test-id",
 				mode: "query",
 			})
 
@@ -331,6 +362,7 @@ describe("Unit: withSupermemory", () => {
 			const ctx = createSupermemoryContext({
 				containerTag: TEST_CONFIG.containerTag,
 				apiKey: TEST_CONFIG.apiKey,
+				customId: "test-id",
 				mode: "query",
 			})
 
@@ -358,6 +390,7 @@ describe("Unit: withSupermemory", () => {
 			const ctx = createSupermemoryContext({
 				containerTag: TEST_CONFIG.containerTag,
 				apiKey: TEST_CONFIG.apiKey,
+				customId: "test-id",
 				mode: "profile",
 			})
 
@@ -420,6 +453,7 @@ describe("Unit: withSupermemory", () => {
 
 			const wrapped = withSupermemory(inner, {
 				containerTag: TEST_CONFIG.containerTag,
+				customId: "test-id",
 				apiKey: "k",
 			})
 
@@ -443,6 +477,7 @@ describe("Unit: withSupermemory", () => {
 			const inner = createMockLanguageModel()
 			const wrapped = withSupermemory(inner, {
 				containerTag: TEST_CONFIG.containerTag,
+				customId: "test-id",
 				apiKey: "k",
 				skipMemoryOnError: false,
 			})
@@ -483,6 +518,7 @@ describe("Unit: withSupermemory", () => {
 
 			const wrapped = withSupermemory(inner, {
 				containerTag: TEST_CONFIG.containerTag,
+				customId: "test-id",
 				apiKey: "k",
 			})
 

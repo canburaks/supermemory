@@ -98,6 +98,7 @@ describe.skipIf(!shouldRunIntegration)(
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-generate",
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "profile",
 				})
@@ -122,14 +123,14 @@ describe.skipIf(!shouldRunIntegration)(
 				const { model } = createIntegrationMockModel()
 				const fetchSpy = vi.spyOn(globalThis, "fetch")
 
-				const conversationId = `test-generate-${Date.now()}`
+				const customId = `test-generate-${Date.now()}`
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId,
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "profile",
 					addMemory: "always",
-					conversationId,
 				})
 
 				await wrapped.doGenerate({
@@ -160,17 +161,17 @@ describe.skipIf(!shouldRunIntegration)(
 				fetchSpy.mockRestore()
 			})
 
-			it("should work with conversationId for grouped memories", async () => {
+			it("should work with customId for grouped memories", async () => {
 				const { model, getCapturedGenerateParams } =
 					createIntegrationMockModel()
 
-				const conversationId = `test-conversation-${Date.now()}`
+				const customId = `test-conversation-${Date.now()}`
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId,
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "profile",
-					conversationId,
 				})
 
 				await wrapped.doGenerate({
@@ -196,6 +197,7 @@ describe.skipIf(!shouldRunIntegration)(
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-stream",
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "profile",
 				})
@@ -228,14 +230,14 @@ describe.skipIf(!shouldRunIntegration)(
 				const { model } = createIntegrationMockModel()
 				const fetchSpy = vi.spyOn(globalThis, "fetch")
 
-				const conversationId = `test-stream-${Date.now()}`
+				const customId = `test-stream-${Date.now()}`
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId,
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "profile",
 					addMemory: "always",
-					conversationId,
 				})
 
 				const { stream } = await wrapped.doStream({
@@ -273,6 +275,7 @@ describe.skipIf(!shouldRunIntegration)(
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-chunks",
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "profile",
 				})
@@ -311,6 +314,7 @@ describe.skipIf(!shouldRunIntegration)(
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-profile",
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "profile",
 				})
@@ -349,6 +353,7 @@ describe.skipIf(!shouldRunIntegration)(
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-query",
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "query",
 				})
@@ -387,6 +392,7 @@ describe.skipIf(!shouldRunIntegration)(
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-full",
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "full",
 				})
@@ -431,6 +437,7 @@ describe.skipIf(!shouldRunIntegration)(
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-template",
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "profile",
 					promptTemplate: customTemplate,
@@ -457,6 +464,7 @@ describe.skipIf(!shouldRunIntegration)(
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-verbose",
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "profile",
 					verbose: true,
@@ -483,6 +491,7 @@ describe.skipIf(!shouldRunIntegration)(
 				// Use the configured base URL (or default)
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-baseurl",
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "profile",
 					baseUrl: INTEGRATION_CONFIG.baseUrl,
@@ -522,6 +531,7 @@ describe.skipIf(!shouldRunIntegration)(
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-error",
 					apiKey: INTEGRATION_CONFIG.apiKey,
 					mode: "profile",
 				})
@@ -544,6 +554,7 @@ describe.skipIf(!shouldRunIntegration)(
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-invalid-key",
 					apiKey: "invalid-api-key-12345",
 					mode: "profile",
 				})
@@ -566,6 +577,7 @@ describe.skipIf(!shouldRunIntegration)(
 
 				const wrapped = withSupermemory(model, {
 					containerTag: INTEGRATION_CONFIG.containerTag,
+					customId: "test-invalid-strict",
 					apiKey: "invalid-api-key-12345",
 					mode: "profile",
 					skipMemoryOnError: false,

@@ -9,6 +9,7 @@ const gatewayModel = gateway("google/gemini-2.5-flash")
 
 const supermemoryOptions = {
 	containerTag: SUPERMEMORY_USER_ID,
+	customId: "stream-session",
 	apiKey: process.env.SUPERMEMORY_API_KEY ?? "",
 	mode: "full" as const,
 	addMemory: "always" as const,

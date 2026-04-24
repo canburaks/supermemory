@@ -17,8 +17,8 @@ const DEFAULT_MEMORY_RETRIEVAL_TIMEOUT_MS = 5000
 interface WrapVercelLanguageModelOptions {
 	/** The container tag/identifier for memory search (e.g., user ID, project ID) */
 	containerTag: string
-	/** Optional conversation ID to group messages for contextual memory generation */
-	conversationId?: string
+	/** Custom ID to group messages into a single document. Required. */
+	customId: string
 	/** Enable detailed logging of memory search and injection */
 	verbose?: boolean
 	/**
@@ -77,10 +77,10 @@ interface WrapVercelLanguageModelOptions {
  * @param model - The language model to wrap with supermemory capabilities (V2 or V3)
  * @param options - Configuration options for Supermemory integration
  * @param options.containerTag - Required. The container tag/identifier for memory search (e.g., user ID, project ID)
- * @param options.conversationId - Optional conversation ID to group messages into a single document for contextual memory generation
+ * @param options.customId - Required. Custom ID to group messages into a single document for contextual memory generation
  * @param options.verbose - Optional flag to enable detailed logging of memory search and injection process (default: false)
  * @param options.mode - Optional mode for memory search: "profile", "query", or "full" (default: "profile")
- * @param options.addMemory - Optional mode for memory search: "always", "never" (default: "never")
+ * @param options.addMemory - Optional mode for memory search: "always", "never" (default: "always")
  * @param options.apiKey - Optional Supermemory API key to use instead of the environment variable
  * @param options.baseUrl - Optional base URL for the Supermemory API (default: "https://api.supermemory.ai")
  * @param options.skipMemoryOnError - When memory retrieval fails or times out: `true` (default) continues without injected memories; `false` throws
@@ -94,7 +94,7 @@ interface WrapVercelLanguageModelOptions {
  *
  * const modelWithMemory = withSupermemory(openai("gpt-4"), {
  *   containerTag: "user-123",
- *   conversationId: "conversation-456",
+ *   customId: "conversation-456",
  *   mode: "full",
  *   addMemory: "always"
  * })
@@ -120,13 +120,19 @@ const wrapVercelLanguageModel = <T extends LanguageModel>(
 		)
 	}
 
+	if (!options.customId) {
+		throw new Error(
+			"customId is required — provide a non-empty string to group messages into a single document",
+		)
+	}
+
 	const ctx = createSupermemoryContext({
 		containerTag: options.containerTag,
 		apiKey: providedApiKey,
-		conversationId: options.conversationId,
+		customId: options.customId,
 		verbose: options.verbose ?? false,
 		mode: options.mode ?? "profile",
-		addMemory: options.addMemory ?? "never",
+		addMemory: options.addMemory ?? "always",
 		baseUrl: options.baseUrl,
 		promptTemplate: options.promptTemplate,
 		memoryRetrievalTimeoutMs: DEFAULT_MEMORY_RETRIEVAL_TIMEOUT_MS,
@@ -181,7 +187,7 @@ const wrapVercelLanguageModel = <T extends LanguageModel>(
 							saveMemoryAfterResponse(
 								ctx.client,
 								ctx.containerTag,
-								ctx.conversationId,
+								ctx.customId,
 								assistantResponseText,
 								params,
 								ctx.logger,
@@ -256,7 +262,7 @@ const wrapVercelLanguageModel = <T extends LanguageModel>(
 									saveMemoryAfterResponse(
 										ctx.client,
 										ctx.containerTag,
-										ctx.conversationId,
+										ctx.customId,
 										generatedText,
 										params,
 										ctx.logger,

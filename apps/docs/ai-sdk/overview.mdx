@@ -26,7 +26,10 @@ import { withSupermemory } from "@supermemory/tools/ai-sdk"
 import { openai } from "@ai-sdk/openai"
 
 // Wrap your model with Supermemory - profiles are automatically injected
-const modelWithMemory = withSupermemory(openai("gpt-5"), "user-123")
+const modelWithMemory = withSupermemory(openai("gpt-5"), {
+  containerTag: "user-123",
+  customId: "conversation-456",
+})
 
 const result = await generateText({
   model: modelWithMemory,
@@ -39,8 +42,10 @@ const result = await generateText({
   **Memory saving is disabled by default.** The middleware only retrieves existing memories. To automatically save new memories from conversations, enable it explicitly:
   
   ```typescript
-  const modelWithMemory = withSupermemory(openai("gpt-5"), "user-123", {
-    addMemory: "always"
+  const modelWithMemory = withSupermemory(openai("gpt-5"), {
+    containerTag: "user-123",
+    customId: "conversation-456",
+    addMemory: "always",
   })
   ```
 </Note>

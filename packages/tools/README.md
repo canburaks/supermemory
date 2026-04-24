@@ -66,27 +66,9 @@ import { generateText } from "ai"
 import { withSupermemory } from "@supermemory/tools/ai-sdk"
 import { openai } from "@ai-sdk/openai"
 
-const modelWithMemory = withSupermemory(openai("gpt-5"), "user_id_life")
-
-const result = await generateText({
-	model: modelWithMemory,
-	messages: [{ role: "user", content: "where do i live?" }],
-})
-
-console.log(result.text)
-```
-
-#### Conversation Grouping
-
-Use the `conversationId` option to group messages into a single document for contextual memory generation:
-
-```typescript
-import { generateText } from "ai"
-import { withSupermemory } from "@supermemory/tools/ai-sdk"
-import { openai } from "@ai-sdk/openai"
-
-const modelWithMemory = withSupermemory(openai("gpt-5"), "user_id_life", {
-	conversationId: "conversation-456"
+const modelWithMemory = withSupermemory(openai("gpt-5"), {
+	containerTag: "user_id_life",
+	customId: "conversation-456",
 })
 
 const result = await generateText({
@@ -106,8 +88,10 @@ import { generateText } from "ai"
 import { withSupermemory } from "@supermemory/tools/ai-sdk"
 import { openai } from "@ai-sdk/openai"
 
-const modelWithMemory = withSupermemory(openai("gpt-5"), "user_id_life", {
-	verbose: true
+const modelWithMemory = withSupermemory(openai("gpt-5"), {
+	containerTag: "user_id_life",
+	customId: "conversation-456",
+	verbose: true,
 })
 
 const result = await generateText({
@@ -139,11 +123,16 @@ import { withSupermemory } from "@supermemory/tools/ai-sdk"
 import { openai } from "@ai-sdk/openai"
 
 // Uses profile mode by default - gets all user profile memories
-const modelWithMemory = withSupermemory(openai("gpt-4"), "user-123")
+const modelWithMemory = withSupermemory(openai("gpt-4"), {
+  containerTag: "user-123",
+  customId: "conversation-456",
+})
 
 // Explicitly specify profile mode
-const modelWithProfile = withSupermemory(openai("gpt-4"), "user-123", { 
-  mode: "profile" 
+const modelWithProfile = withSupermemory(openai("gpt-4"), {
+  containerTag: "user-123",
+  customId: "conversation-456",
+  mode: "profile",
 })
 
 const result = await generateText({
@@ -158,8 +147,10 @@ import { generateText } from "ai"
 import { withSupermemory } from "@supermemory/tools/ai-sdk"
 import { openai } from "@ai-sdk/openai"
 
-const modelWithQuery = withSupermemory(openai("gpt-4"), "user-123", { 
-  mode: "query" 
+const modelWithQuery = withSupermemory(openai("gpt-4"), {
+  containerTag: "user-123",
+  customId: "conversation-456",
+  mode: "query",
 })
 
 const result = await generateText({
@@ -174,8 +165,10 @@ import { generateText } from "ai"
 import { withSupermemory } from "@supermemory/tools/ai-sdk"
 import { openai } from "@ai-sdk/openai"
 
-const modelWithFull = withSupermemory(openai("gpt-4"), "user-123", { 
-  mode: "full" 
+const modelWithFull = withSupermemory(openai("gpt-4"), {
+  containerTag: "user-123",
+  customId: "conversation-456",
+  mode: "full",
 })
 
 const result = await generateText({
@@ -194,8 +187,10 @@ import { generateText } from "ai"
 import { withSupermemory } from "@supermemory/tools/ai-sdk"
 import { openai } from "@ai-sdk/openai"
 
-const modelWithAutoSave = withSupermemory(openai("gpt-4"), "user-123", {
-  addMemory: "always"
+const modelWithAutoSave = withSupermemory(openai("gpt-4"), {
+  containerTag: "user-123",
+  customId: "conversation-456",
+  addMemory: "always",
 })
 
 const result = await generateText({
@@ -205,17 +200,23 @@ const result = await generateText({
 // This message will be automatically saved as a memory
 ```
 
-**Never Save Memories (Default)** - Only retrieves memories without storing new ones:
+**Never Save Memories** - Only retrieves memories without storing new ones:
 ```typescript
-const modelWithNoSave = withSupermemory(openai("gpt-4"), "user-123")
+const modelWithNoSave = withSupermemory(openai("gpt-4"), {
+  containerTag: "user-123",
+  customId: "conversation-456",
+  addMemory: "never",  // explicit since default is now "always"
+})
 ```
 
 **Combined Options** - Use verbose logging with specific modes and memory storage:
 ```typescript
-const modelWithOptions = withSupermemory(openai("gpt-4"), "user-123", {
+const modelWithOptions = withSupermemory(openai("gpt-4"), {
+  containerTag: "user-123",
+  customId: "conversation-456",
   mode: "profile",
   addMemory: "always",
-  verbose: true
+  verbose: true,
 })
 ```
 
@@ -239,7 +240,9 @@ ${data.generalSearchMemories}
 </user_memories>
 `.trim()
 
-const modelWithCustomPrompt = withSupermemory(openai("gpt-4"), "user-123", {
+const modelWithCustomPrompt = withSupermemory(openai("gpt-4"), {
+  containerTag: "user-123",
+  customId: "conversation-456",
   mode: "full",
   promptTemplate: customPrompt,
 })
@@ -646,11 +649,12 @@ Without `strict: true`, optional fields like `includeFullDocs` and `limit` won't
 
 ### withSupermemory Middleware Options
 
-The `withSupermemory` middleware accepts additional configuration options:
+The `withSupermemory` middleware accepts a configuration object as the second argument:
 
 ```typescript
 interface WithSupermemoryOptions {
-  conversationId?: string
+  containerTag: string
+  customId: string
   verbose?: boolean
   mode?: "profile" | "query" | "full"
   addMemory?: "always" | "never"
@@ -662,7 +666,8 @@ interface WithSupermemoryOptions {
 }
 ```
 
-- **conversationId**: Optional conversation ID to group messages into a single document for contextual memory generation
+- **containerTag**: Required. The container tag/identifier for memory search (e.g., user ID, project ID)
+- **customId**: Required. Custom ID to group messages into a single document for contextual memory generation
 - **verbose**: Enable detailed logging of memory search and injection process (default: false)
 - **mode**: Memory search mode - "profile" (default), "query", or "full"
 - **addMemory**: Automatic memory storage mode - "always" or "never" (default: "never")
