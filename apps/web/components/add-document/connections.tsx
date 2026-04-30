@@ -6,14 +6,27 @@ import type { ConnectionResponseSchema } from "@repo/validation/api"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { GoogleDrive, Notion, OneDrive } from "@ui/assets/icons"
 import { useCustomer } from "autumn-js/react"
-import { Check, Loader, Trash2, Zap } from "lucide-react"
+import { Check, ChevronDown, Loader, Trash2, Zap } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import type { z } from "zod"
 import { dmSansClassName } from "@/lib/fonts"
 import { cn } from "@lib/utils"
 import { Button } from "@ui/components/button"
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@ui/components/dropdown-menu"
 import { RemoveConnectionDialog } from "@/components/remove-connection-dialog"
+
+type GDriveSyncScope = "scoped" | "full"
+
+const GDRIVE_SCOPE_LABELS: Record<GDriveSyncScope, string> = {
+	scoped: "Files & Folders",
+	full: "Whole Drive",
+}
 
 type Connection = z.infer<typeof ConnectionResponseSchema>
 
@@ -54,6 +67,8 @@ export function ConnectContent({ selectedProject }: ConnectContentProps) {
 	const isProUser = hasActivePlan(autumn.customer?.products, "api_pro")
 	const [connectingProvider, setConnectingProvider] =
 		useState<ConnectorProvider | null>(null)
+	const [gdriveSyncScope, setGdriveSyncScope] =
+		useState<GDriveSyncScope>("scoped")
 	const [isUpgrading, setIsUpgrading] = useState(false)
 	const [removeDialog, setRemoveDialog] = useState<{
 		open: boolean
@@ -114,7 +129,13 @@ export function ConnectContent({ selectedProject }: ConnectContentProps) {
 
 	// Connect mutation
 	const addConnectionMutation = useMutation({
-		mutationFn: async (provider: ConnectorProvider) => {
+		mutationFn: async ({
+			provider,
+			syncScope,
+		}: {
+			provider: ConnectorProvider
+			syncScope?: GDriveSyncScope
+		}) => {
 			if (!canAddConnection && !isProUser) {
 				throw new Error(
 					"Free plan doesn't include connections. Upgrade to Pro for unlimited connections.",
@@ -126,6 +147,10 @@ export function ConnectContent({ selectedProject }: ConnectContentProps) {
 				body: {
 					redirectUrl: window.location.href,
 					containerTags: [selectedProject],
+					metadata:
+						provider === "google-drive" && syncScope === "full"
+							? { syncScope: "full" }
+							: undefined,
 				},
 			})
 
@@ -180,7 +205,10 @@ export function ConnectContent({ selectedProject }: ConnectContentProps) {
 
 	const handleConnect = (provider: ConnectorProvider) => {
 		setConnectingProvider(provider)
-		addConnectionMutation.mutate(provider)
+		addConnectionMutation.mutate({
+			provider,
+			syncScope: provider === "google-drive" ? gdriveSyncScope : undefined,
+		})
 	}
 
 	const handleDisconnect = (connection: Connection) => {
@@ -215,7 +243,66 @@ export function ConnectContent({ selectedProject }: ConnectContentProps) {
 						const isConnecting =
 							connectingProvider === provider ||
 							(addConnectionMutation.isPending &&
-								addConnectionMutation.variables === provider)
+								addConnectionMutation.variables?.provider === provider)
+
+						if (provider === "google-drive") {
+							return (
+								<div
+									key={provider}
+									className="bg-[#14161A] border border-[rgba(82,89,102,0.2)] rounded-[12px] flex overflow-hidden"
+								>
+									<button
+										type="button"
+										onClick={() => handleConnect("google-drive")}
+										disabled={
+											!isProUser ||
+											isConnecting ||
+											addConnectionMutation.isPending
+										}
+										className="flex-1 py-3 flex items-center justify-center gap-2 hover:bg-[#1B1F24] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+									>
+										<Icon className="w-6 h-6 text-[#737373]" />
+										<p className="text-[14px] font-medium">{config.title}</p>
+										{isConnecting && (
+											<Loader className="h-4 w-4 animate-spin text-[#4BA0FA]" />
+										)}
+									</button>
+									<div className="w-px bg-[rgba(82,89,102,0.4)] self-stretch my-2" />
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<button
+												type="button"
+												className="w-8 flex items-center justify-center hover:bg-[#1B1F24] transition-colors"
+											>
+												<ChevronDown className="w-3 h-3 text-[#737373]" />
+											</button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end" className="w-40">
+											{(
+												Object.entries(GDRIVE_SCOPE_LABELS) as [
+													GDriveSyncScope,
+													string,
+												][]
+											).map(([scope, label]) => (
+												<DropdownMenuItem
+													key={scope}
+													onClick={(e) => {
+														e.stopPropagation()
+														setGdriveSyncScope(scope)
+													}}
+													className="flex items-center justify-between"
+												>
+													{label}
+													{gdriveSyncScope === scope && (
+														<Check className="w-3 h-3 text-[#4BA0FA]" />
+													)}
+												</DropdownMenuItem>
+											))}
+										</DropdownMenuContent>
+									</DropdownMenu>
+								</div>
+							)
+						}
 
 						return (
 							<button
@@ -249,7 +336,7 @@ export function ConnectContent({ selectedProject }: ConnectContentProps) {
 						const isConnecting =
 							connectingProvider === provider ||
 							(addConnectionMutation.isPending &&
-								addConnectionMutation.variables === provider)
+								addConnectionMutation.variables?.provider === provider)
 
 						return (
 							<div
@@ -285,6 +372,58 @@ export function ConnectContent({ selectedProject }: ConnectContentProps) {
 										>
 											<Trash2 className="h-4 w-4" />
 										</Button>
+									) : provider === "google-drive" ? (
+										<div className="flex items-center rounded-md overflow-hidden">
+											<button
+												type="button"
+												onClick={() => handleConnect("google-drive")}
+												disabled={
+													!isProUser ||
+													isConnecting ||
+													addConnectionMutation.isPending
+												}
+												className="bg-[#4BA0FA] text-black hover:bg-[#4BA0FA]/90 text-[14px] font-medium px-3 h-8 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+											>
+												{isConnecting ? (
+													<Loader className="h-4 w-4 animate-spin" />
+												) : (
+													"Connect"
+												)}
+											</button>
+											<div className="w-px h-5 bg-black/20" />
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<button
+														type="button"
+														className="bg-[#4BA0FA] text-black hover:bg-[#4BA0FA]/90 px-1.5 h-8 flex items-center transition-colors"
+													>
+														<ChevronDown className="w-3 h-3" />
+													</button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align="end" className="w-40">
+													{(
+														Object.entries(GDRIVE_SCOPE_LABELS) as [
+															GDriveSyncScope,
+															string,
+														][]
+													).map(([scope, label]) => (
+														<DropdownMenuItem
+															key={scope}
+															onClick={(e) => {
+																e.stopPropagation()
+																setGdriveSyncScope(scope)
+															}}
+															className="flex items-center justify-between"
+														>
+															{label}
+															{gdriveSyncScope === scope && (
+																<Check className="w-3 h-3 text-[#4BA0FA]" />
+															)}
+														</DropdownMenuItem>
+													))}
+												</DropdownMenuContent>
+											</DropdownMenu>
+										</div>
 									) : (
 										<Button
 											onClick={() =>
