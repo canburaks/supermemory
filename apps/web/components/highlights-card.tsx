@@ -7,7 +7,6 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Info,
-	Loader2,
 	MessageSquare,
 	Link2,
 } from "lucide-react"
@@ -103,14 +102,24 @@ export function HighlightsCard({
 		return (
 			<div
 				className={cn(
-					"bg-[#0B1017] border border-[rgba(255,255,255,0.05)] rounded-[18px] p-3 flex flex-col gap-3 min-h-[180px] items-center justify-center",
+					"bg-[#0B1017] border border-[rgba(255,255,255,0.05)] rounded-[18px] p-3 flex flex-col gap-3",
 					dmSansClassName(),
 				)}
 			>
-				<Loader2 className="size-5 animate-spin text-[#4BA0FA]" />
-				<span className="text-[10px] text-[#737373]">
-					Loading highlights...
-				</span>
+				<div className="flex items-center gap-1">
+					<div className="size-[14px] rounded-full bg-[#1A2030] animate-pulse" />
+					<div className="h-2 w-20 rounded bg-[#1A2030] animate-pulse" />
+				</div>
+				<div className="flex flex-col gap-1.5">
+					<div className="h-2.5 w-2/5 rounded bg-[#1A2030] animate-pulse" />
+					<div className="h-2 w-full rounded bg-[#1A2030] animate-pulse" />
+					<div className="h-2 w-[85%] rounded bg-[#1A2030] animate-pulse" />
+					<div className="h-2 w-[65%] rounded bg-[#1A2030] animate-pulse" />
+				</div>
+				<div className="flex items-center gap-2">
+					<div className="h-[26px] w-14 rounded-lg bg-[#1A2030] animate-pulse" />
+					<div className="h-[26px] w-16 rounded-lg bg-[#1A2030] animate-pulse" />
+				</div>
 			</div>
 		)
 	}

@@ -12,7 +12,6 @@ import { OnboardingContentStep } from "@/components/onboarding/welcome/continue-
 import { InitialHeader } from "@/components/initial-header"
 import { Logo } from "@ui/assets/Logo"
 import NovaOrb from "@/components/nova/nova-orb"
-import { AnimatedGradientBackground } from "@/components/animated-gradient-background"
 
 import {
 	useWelcomeContext,
@@ -212,7 +211,7 @@ export default function WelcomePage() {
 	const showUserSupermemory = currentStep === "username"
 
 	return (
-		<div className="h-screen overflow-hidden bg-black">
+		<div className="relative h-screen overflow-hidden bg-black">
 			<InitialHeader
 				showUserSupermemory={
 					currentStep === "features" || currentStep === "memories"
@@ -220,10 +219,6 @@ export default function WelcomePage() {
 				showSkipOnboarding={currentStep !== "input"}
 				name={name}
 			/>
-
-			{currentStep === "input" && (
-				<AnimatedGradientBackground animateFromBottom={true} />
-			)}
 
 			{showWelcomeContent && (
 				<div className="fixed inset-0 flex flex-col items-center justify-center overflow-y-auto">
@@ -254,7 +249,6 @@ export default function WelcomePage() {
 							initial={{
 								padding: 0,
 								paddingTop: 0,
-								y: 60,
 							}}
 							className="relative"
 						>

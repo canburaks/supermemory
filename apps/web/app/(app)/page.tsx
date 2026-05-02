@@ -1,9 +1,18 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import {
+	useState,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useSyncExternalStore,
+} from "react"
+import { AnimatePresence, motion } from "motion/react"
 import { useQueryState } from "nuqs"
 import { Header } from "@/components/header"
-import { ChatSidebar } from "@/components/chat"
+import { ChatSidebar, HomeChatComposer } from "@/components/chat"
+import { DashboardView } from "@/components/dashboard-view"
 import { MemoriesGrid } from "@/components/memories-grid"
 import { GraphLayoutView } from "@/components/graph-layout-view"
 import { IntegrationsView } from "@/components/integrations-view"
@@ -15,7 +24,6 @@ import { FullscreenNoteModal } from "@/components/fullscreen-note-modal"
 import type { HighlightItem } from "@/components/highlights-card"
 import { HotkeysProvider } from "react-hotkeys-hook"
 import { useHotkeys } from "react-hotkeys-hook"
-import { AnimatePresence } from "motion/react"
 import { useIsMobile } from "@hooks/use-mobile"
 import { useAuth } from "@lib/auth-context"
 import { useProject } from "@/stores"
@@ -26,11 +34,14 @@ import {
 	useQuickNoteDraft,
 } from "@/stores/quick-note-draft"
 import { analytics } from "@/lib/analytics"
+import type { ModelId } from "@/lib/models"
 import { useDocumentMutations } from "@/hooks/use-document-mutations"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import type { DocumentsWithMemoriesResponseSchema } from "@repo/validation/api"
 import type { z } from "zod"
 import { useViewMode } from "@/lib/view-mode-context"
+import type { MemoryOfDay } from "@/components/dashboard-view"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { cn } from "@lib/utils"
 import {
@@ -39,14 +50,35 @@ import {
 	qParam,
 	docParam,
 	fullscreenParam,
-	chatParam,
 	integrationParam,
 	pluginsPanelParam,
 	type IntegrationParamValue,
 } from "@/lib/search-params"
+import { getChatSpaceDisplayLabel } from "@/lib/chat-space-label"
 
 type DocumentsResponse = z.infer<typeof DocumentsWithMemoriesResponseSchema>
 type DocumentWithMemories = DocumentsResponse["documents"][0]
+
+function subscribeViewportWidth(cb: () => void) {
+	window.addEventListener("resize", cb)
+	return () => window.removeEventListener("resize", cb)
+}
+
+function getViewportWidth() {
+	return window.innerWidth
+}
+
+const GRADIENT_TOP_WIDTH_MAX = 1440
+
+function gradientTopPositionForWidth(width: number) {
+	const minW = 320
+	const pctWide = 15
+	const pctNarrow = 70
+	const w = Math.min(GRADIENT_TOP_WIDTH_MAX, Math.max(minW, width))
+	const t = (w - minW) / (GRADIENT_TOP_WIDTH_MAX - minW)
+	const eased = t * t
+	return `${Math.round(pctNarrow + eased * (pctWide - pctNarrow))}%`
+}
 
 function ViewErrorFallback() {
 	return (
@@ -68,34 +100,28 @@ function ViewErrorFallback() {
 export default function NewPage() {
 	const isMobile = useIsMobile()
 	const { user, session } = useAuth()
-	const {
-		selectedProject,
-		isNovaSpaces,
-		novaContainerTags,
-		selectedProjects,
-		setSelectedProjects,
-	} = useProject()
-	const selectedProjectTag = selectedProjects[0]
-	const isNovaContext =
-		isNovaSpaces ||
-		(selectedProjectTag !== undefined &&
-			novaContainerTags.includes(selectedProjectTag))
-	const { allProjects } = useContainerTags()
-	const emptyStateSpaceName =
-		!isNovaSpaces && selectedProjectTag
-			? selectedProjectTag === DEFAULT_PROJECT_ID
-				? "My Space"
-				: (allProjects.find((p) => p.containerTag === selectedProjectTag)
-						?.name ?? selectedProjectTag)
-			: undefined
 
-	const handleSwitchToAllSpacesFromEmptyState = useCallback(() => {
-		analytics.spaceSwitched({ space_id: "nova_spaces" })
-		setSelectedProjects([])
-	}, [setSelectedProjects])
+	const { selectedProject, selectedProjects } = useProject()
+	const selectedProjectTag = selectedProjects[0]
+	const { allProjects } = useContainerTags()
+	const dashboardSpaceLabel = useMemo(
+		() =>
+			getChatSpaceDisplayLabel({
+				selectedProject,
+				allProjects,
+			}),
+		[selectedProject, allProjects],
+	)
+	const emptyStateSpaceName = selectedProjectTag
+		? selectedProjectTag === DEFAULT_PROJECT_ID
+			? "My Space"
+			: (allProjects.find((p) => p.containerTag === selectedProjectTag)?.name ??
+				selectedProjectTag)
+		: undefined
 
 	const { viewMode, setViewMode } = useViewMode()
 	const queryClient = useQueryClient()
+	const [highlightsForceAt, setHighlightsForceAt] = useState(0)
 
 	// Chrome extension auth: send session token via postMessage so the content script can store it
 	useEffect(() => {
@@ -122,12 +148,14 @@ export default function NewPage() {
 		"fullscreen",
 		fullscreenParam,
 	)
-	const [isChatOpen, setIsChatOpen] = useQueryState("chat", chatParam)
 	const [integrationFromUrl, setIntegration] = useQueryState(
 		"integration",
 		integrationParam,
 	)
-	const [pluginsPanelFromUrl] = useQueryState("plugins", pluginsPanelParam)
+	const [pluginsPanelFromUrl, setPluginsPanel] = useQueryState(
+		"plugins",
+		pluginsPanelParam,
+	)
 
 	useEffect(() => {
 		if (integrationFromUrl || pluginsPanelFromUrl === true) {
@@ -138,6 +166,10 @@ export default function NewPage() {
 	// Ephemeral local state (not worth URL-encoding)
 	const [fullscreenInitialContent, setFullscreenInitialContent] = useState("")
 	const [queuedChatSeed, setQueuedChatSeed] = useState<string | null>(null)
+	const [queuedChatModel, setQueuedChatModel] = useState<ModelId | null>(null)
+	const [queuedMessageSource, setQueuedMessageSource] = useState<
+		"highlight" | "home"
+	>("highlight")
 	const [selectedDocument, setSelectedDocument] =
 		useState<DocumentWithMemories | null>(null)
 
@@ -177,6 +209,8 @@ export default function NewPage() {
 
 	const resetDraft = useQuickNoteDraftReset(selectedProject)
 	const { draft: quickNoteDraft } = useQuickNoteDraft(selectedProject || "")
+	const quickNoteDraftRef = useRef(quickNoteDraft)
+	quickNoteDraftRef.current = quickNoteDraft
 
 	const { noteMutation, bulkDeleteMutation } = useDocumentMutations({
 		onClose: () => {
@@ -247,20 +281,31 @@ export default function NewPage() {
 	const HIGHLIGHTS_CACHE_NAME = "space-highlights-v1"
 	const HIGHLIGHTS_MAX_AGE = 4 * 60 * 60 * 1000 // 4 hours
 
+	const handleResetHighlights = useCallback(async () => {
+		toast.success("Refreshing daily brief…")
+		try {
+			await caches.delete(HIGHLIGHTS_CACHE_NAME)
+		} catch {}
+		setHighlightsForceAt(Date.now())
+	}, [])
+
 	const { data: highlightsData, isLoading: isLoadingHighlights } =
 		useQuery<SpaceHighlightsResponse>({
-			queryKey: ["space-highlights", selectedProject],
+			queryKey: ["space-highlights", selectedProject, highlightsForceAt],
 			queryFn: async (): Promise<SpaceHighlightsResponse> => {
 				const spaceId = selectedProject || "sm_project_default"
+				const forceRefresh = highlightsForceAt > 0
 				const cacheKey = `${process.env.NEXT_PUBLIC_BACKEND_URL}/v3/space-highlights?spaceId=${spaceId}`
 
-				const cache = await caches.open(HIGHLIGHTS_CACHE_NAME)
-				const cached = await cache.match(cacheKey)
-				if (cached) {
-					const age =
-						Date.now() - Number(cached.headers.get("x-cached-at") || 0)
-					if (age < HIGHLIGHTS_MAX_AGE) {
-						return cached.json()
+				if (!forceRefresh) {
+					const cache = await caches.open(HIGHLIGHTS_CACHE_NAME)
+					const cached = await cache.match(cacheKey)
+					if (cached) {
+						const age =
+							Date.now() - Number(cached.headers.get("x-cached-at") || 0)
+						if (age < HIGHLIGHTS_MAX_AGE) {
+							return cached.json()
+						}
 					}
 				}
 
@@ -276,6 +321,7 @@ export default function NewPage() {
 							questionsCount: 4,
 							includeHighlights: true,
 							includeQuestions: true,
+							forceRefresh,
 						}),
 					},
 				)
@@ -286,19 +332,58 @@ export default function NewPage() {
 
 				const data = await response.json()
 
-				const cacheResponse = new Response(JSON.stringify(data), {
-					headers: {
-						"Content-Type": "application/json",
-						"x-cached-at": String(Date.now()),
-					},
-				})
-				await cache.put(cacheKey, cacheResponse)
+				// Update browser cache with fresh data (works for both normal and forced refresh)
+				try {
+					const freshCache = await caches.open(HIGHLIGHTS_CACHE_NAME)
+					const cacheResponse = new Response(JSON.stringify(data), {
+						headers: {
+							"Content-Type": "application/json",
+							"x-cached-at": String(Date.now()),
+						},
+					})
+					await freshCache.put(cacheKey, cacheResponse)
+				} catch {}
+
+				// Reset force flag after the forced fetch completes so future project-switches
+				// use the normal cache path instead of always bypassing it.
+				if (forceRefresh) setHighlightsForceAt(0)
 
 				return data
 			},
 			staleTime: HIGHLIGHTS_MAX_AGE,
 			refetchOnWindowFocus: false,
 		})
+
+	const { data: memoryOfDay = null } = useQuery<MemoryOfDay | null>({
+		queryKey: [
+			"memory-of-day",
+			user?.id,
+			new Date().toISOString().slice(0, 10),
+		],
+		queryFn: async (): Promise<MemoryOfDay | null> => {
+			const cacheKey = `memory-of-day:${user?.id}:${new Date().toISOString().slice(0, 10)}`
+			try {
+				const stored = localStorage.getItem(cacheKey)
+				if (stored) return JSON.parse(stored) as MemoryOfDay
+			} catch {}
+
+			const response = await fetch(
+				`${process.env.NEXT_PUBLIC_BACKEND_URL}/v3/memory-of-day`,
+				{ credentials: "include" },
+			)
+			if (!response.ok) return null
+			const data = (await response.json()) as MemoryOfDay | null
+			if (data) {
+				try {
+					localStorage.setItem(cacheKey, JSON.stringify(data))
+				} catch {}
+			}
+			return data
+		},
+		staleTime: 24 * 60 * 60 * 1000,
+		refetchOnWindowFocus: false,
+		enabled: !!user,
+	})
 
 	useHotkeys("c", () => {
 		analytics.addDocumentModalOpened()
@@ -324,7 +409,7 @@ export default function NewPage() {
 	const handleQuickNoteSave = useCallback(
 		(content: string) => {
 			if (content.trim()) {
-				const hadPreviousContent = quickNoteDraft.trim().length > 0
+				const hadPreviousContent = quickNoteDraftRef.current.trim().length > 0
 				noteMutation.mutate(
 					{ content, project: selectedProject },
 					{
@@ -339,7 +424,7 @@ export default function NewPage() {
 				)
 			}
 		},
-		[selectedProject, noteMutation, quickNoteDraft],
+		[selectedProject, noteMutation],
 	)
 
 	const handleFullScreenSave = useCallback(
@@ -375,10 +460,28 @@ export default function NewPage() {
 	const handleHighlightsChat = useCallback(
 		(seed: string) => {
 			setQueuedChatSeed(seed)
-			setIsChatOpen(true)
+			setQueuedChatModel(null)
+			setQueuedMessageSource("highlight")
+			void setViewMode("chat")
 		},
-		[setIsChatOpen],
+		[setViewMode],
 	)
+
+	const handleHomeChatStart = useCallback(
+		(message: string, model: ModelId) => {
+			setQueuedChatSeed(message)
+			setQueuedChatModel(model)
+			setQueuedMessageSource("home")
+			void setViewMode("chat")
+		},
+		[setViewMode],
+	)
+
+	const consumeQueuedChat = useCallback(() => {
+		setQueuedChatSeed(null)
+		setQueuedChatModel(null)
+		setQueuedMessageSource("highlight")
+	}, [])
 
 	const handleHighlightsShowRelated = useCallback(
 		(query: string) => {
@@ -401,6 +504,11 @@ export default function NewPage() {
 		[setViewMode, setIntegration],
 	)
 
+	const handleOpenPlugins = useCallback(() => {
+		void setViewMode("integrations")
+		void setPluginsPanel(true)
+	}, [setViewMode, setPluginsPanel])
+
 	const handleAddMemory = useCallback(
 		(tab: "note" | "link") => {
 			analytics.addDocumentModalOpened()
@@ -409,120 +517,193 @@ export default function NewPage() {
 		[setAddDoc],
 	)
 
-	const chatOpen = isChatOpen !== null ? isChatOpen : !isMobile
+	const viewportWidth = useSyncExternalStore(
+		subscribeViewportWidth,
+		getViewportWidth,
+		() => GRADIENT_TOP_WIDTH_MAX,
+	)
+	const gradientTopPosition = gradientTopPositionForWidth(viewportWidth)
+
+	const isChatView = viewMode === "chat"
 	const isGraphMode = viewMode === "graph" && !isMobile
+	const isMemoriesDesktop = viewMode === "list" && !isMobile
+	const isHomeDesktop = viewMode === "dashboard" && !isMobile
+	const showNovaBackdrop = isGraphMode || isMemoriesDesktop
+	const isDashboardShell =
+		viewMode === "dashboard" || (viewMode === "graph" && isMobile)
 
 	return (
 		<HotkeysProvider>
 			<div
 				className={cn(
-					"bg-black min-h-screen",
-					isGraphMode && "h-screen overflow-hidden",
+					"relative flex min-h-dvh flex-col bg-black",
+					isGraphMode && "h-dvh overflow-hidden",
 				)}
 			>
-				<AnimatedGradientBackground
-					topPosition="15%"
-					animateFromBottom={false}
-				/>
-				{isGraphMode && (
-					<div
-						id="graph-dotted-grid"
-						className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,rgba(105,167,240,0.25)_1px,transparent_1px)] bg-size-[32px_32px] mask-[radial-gradient(ellipse_at_center,black_60%,transparent_100%)]"
-					/>
+				{showNovaBackdrop && (
+					<>
+						<AnimatedGradientBackground
+							animateFromBottom={isHomeDesktop}
+							topPosition={gradientTopPosition}
+						/>
+						<div
+							className={cn(
+								"pointer-events-none absolute inset-0 z-0",
+								isHomeDesktop
+									? "bg-[linear-gradient(to_top,rgb(0_0_0/0.88)_0%,rgb(0_0_0/0.52)_38%,rgb(0_0_0/0.42)_100%)]"
+									: "bg-black/50",
+							)}
+							aria-hidden
+						/>
+						<div
+							id="graph-dotted-grid"
+							className={cn(
+								"pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(circle_at_center,rgba(105,167,240,0.25)_1px,transparent_1px)] bg-size-[32px_32px] mask-[radial-gradient(ellipse_at_center,black_60%,transparent_100%)]",
+								isHomeDesktop && "opacity-70",
+							)}
+						/>
+					</>
 				)}
 				<Header
 					onAddMemory={() => {
 						analytics.addDocumentModalOpened()
 						setAddDoc("note")
 					}}
-					onOpenChat={() => setIsChatOpen(true)}
 					onOpenSearch={() => {
 						analytics.searchOpened({ source: "header" })
 						setIsSearchOpen(true)
 					}}
 				/>
-				<main
-					key={`main-container-${chatOpen}-${viewMode}`}
-					className={cn(
-						"z-10 relative",
-						isGraphMode && "h-[calc(100vh-86px)] overflow-hidden",
-					)}
-				>
-					<div className={cn("relative z-10 flex flex-col md:flex-row h-full")}>
-						<ErrorBoundary fallback={<ViewErrorFallback />}>
-							{viewMode === "integrations" ? (
-								<div className="flex-1 p-4 md:p-6 md:pr-0 pt-2!">
-									<IntegrationsView />
-								</div>
-							) : viewMode === "graph" && !isMobile ? (
-								<div className="flex-1">
-									<GraphLayoutView isChatOpen={chatOpen} />
-								</div>
-							) : (
-								<div className="flex-1 p-4 md:p-6 md:pr-0 pt-2!">
-									<MemoriesGrid
-										isChatOpen={chatOpen}
-										onOpenDocument={handleOpenDocument}
-										isSelectionMode={isSelectionMode}
-										selectedDocumentIds={selectedDocumentIds}
-										onEnterSelectionMode={handleEnterSelectionMode}
-										onToggleSelection={handleToggleSelection}
-										onClearSelection={handleClearSelection}
-										onSelectAllVisible={handleSelectAllVisible}
-										onBulkDelete={handleBulkDelete}
-										isBulkDeleting={bulkDeleteMutation.isPending}
-										quickNoteProps={{
-											onSave: handleQuickNoteSave,
-											onMaximize: handleMaximize,
-											isSaving: noteMutation.isPending,
-										}}
-										highlightsProps={{
-											items: highlightsData?.highlights || [],
-											onChat: handleHighlightsChat,
-											onShowRelated: handleHighlightsShowRelated,
-											isLoading: isLoadingHighlights,
-										}}
-										emptyStateProps={
-											isNovaContext
-												? {
-														onAddMemory: handleAddMemory,
-														onOpenIntegrations: handleOpenIntegrations,
-														isAllSpaces: isNovaSpaces,
-														spaceName: emptyStateSpaceName,
-														onSwitchToAllSpaces: isNovaSpaces
-															? undefined
-															: handleSwitchToAllSpacesFromEmptyState,
-													}
-												: undefined
-										}
-									/>
-								</div>
+				<AnimatePresence mode="wait">
+					<motion.main
+						key={`main-container-${viewMode}`}
+						initial={{ opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -6 }}
+						transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+						className={cn(
+							"relative z-10 flex min-h-0 flex-1 flex-col",
+							(isGraphMode || isChatView) && "overflow-hidden",
+						)}
+					>
+						<div
+							className={cn(
+								"relative z-10 flex min-h-0 flex-1 flex-col md:flex-row",
 							)}
-						</ErrorBoundary>
-						<div className="hidden md:block md:sticky md:top-0 md:h-screen">
-							<AnimatePresence mode="popLayout">
-								<ErrorBoundary>
-									<ChatSidebar
-										isChatOpen={chatOpen}
-										setIsChatOpen={(open) => setIsChatOpen(open)}
-										queuedMessage={queuedChatSeed}
-										onConsumeQueuedMessage={() => setQueuedChatSeed(null)}
-										emptyStateSuggestions={highlightsData?.questions}
+						>
+							<ErrorBoundary fallback={<ViewErrorFallback />}>
+								{isChatView ? (
+									<div className="flex min-h-0 w-full min-w-0 flex-1 flex-col md:self-stretch">
+										<ChatSidebar
+											layout="page"
+											isChatOpen
+											setIsChatOpen={(open) => {
+												if (!open) void setViewMode("dashboard")
+											}}
+											queuedMessage={queuedChatSeed}
+											onConsumeQueuedMessage={consumeQueuedChat}
+											queuedMessageSource={queuedMessageSource}
+											initialSelectedModel={queuedChatModel}
+											emptyStateSuggestions={highlightsData?.questions}
+										/>
+									</div>
+								) : viewMode === "integrations" ? (
+									<div className="min-h-0 min-w-0 flex-1 p-4 pt-2! md:p-6 md:pr-0">
+										<IntegrationsView />
+									</div>
+								) : viewMode === "graph" && !isMobile ? (
+									<div className="min-h-0 min-w-0 flex-1">
+										<GraphLayoutView />
+									</div>
+								) : viewMode === "list" ? (
+									<div
+										className={cn(
+											"min-h-0 min-w-0 flex-1 p-4 pt-2! md:p-6 md:pr-0",
+											"pb-10 md:pb-12",
+										)}
+									>
+										<MemoriesGrid
+											isChatOpen={false}
+											onOpenDocument={handleOpenDocument}
+											isSelectionMode={isSelectionMode}
+											selectedDocumentIds={selectedDocumentIds}
+											onEnterSelectionMode={handleEnterSelectionMode}
+											onToggleSelection={handleToggleSelection}
+											onClearSelection={handleClearSelection}
+											onSelectAllVisible={handleSelectAllVisible}
+											onBulkDelete={handleBulkDelete}
+											isBulkDeleting={bulkDeleteMutation.isPending}
+											quickNoteProps={{
+												onSave: handleQuickNoteSave,
+												onMaximize: handleMaximize,
+												isSaving: noteMutation.isPending,
+											}}
+											highlightsProps={{
+												items: highlightsData?.highlights || [],
+												onChat: handleHighlightsChat,
+												onShowRelated: handleHighlightsShowRelated,
+												isLoading: isLoadingHighlights,
+											}}
+											emptyStateProps={{
+												onAddMemory: handleAddMemory,
+												onOpenIntegrations: handleOpenIntegrations,
+												isAllSpaces: false,
+												spaceName: emptyStateSpaceName,
+												onSwitchToAllSpaces: undefined,
+											}}
+										/>
+									</div>
+								) : (
+									<DashboardView
+										spaceLabel={dashboardSpaceLabel}
+										headerNotice={
+											viewMode === "graph" && isMobile ? (
+												<div
+													id="graph-mobile-notice"
+													className="rounded-lg border border-[#2261CA33] bg-[#041127] px-3 py-2.5 text-sm text-[#8B8B8B]"
+												>
+													<span className="font-medium text-white">
+														Graph view is available on desktop.
+													</span>{" "}
+													Use a larger screen for the full graph, or keep
+													working from this home view.
+												</div>
+											) : undefined
+										}
+										highlights={highlightsData?.highlights ?? []}
+										isLoadingHighlights={isLoadingHighlights}
+										onAddMemory={handleAddMemory}
+										onOpenSearch={() => {
+											analytics.searchOpened({ source: "header" })
+											setIsSearchOpen(true)
+										}}
+										onOpenIntegrations={handleOpenIntegrations}
+										onOpenPlugins={handleOpenPlugins}
+										onNavigateToMemories={() => void setViewMode("list")}
+										onNavigateToGraph={() => void setViewMode("graph")}
+										onOpenDocument={handleOpenDocument}
+										onHighlightsChat={handleHighlightsChat}
+										onHighlightsShowRelated={handleHighlightsShowRelated}
+										onResetHighlights={handleResetHighlights}
+										memoryOfDay={memoryOfDay}
 									/>
-								</ErrorBoundary>
-							</AnimatePresence>
+								)}
+							</ErrorBoundary>
+						</div>
+					</motion.main>
+				</AnimatePresence>
+
+				{isDashboardShell && (
+					<div
+						className={cn(
+							"pointer-events-none fixed inset-x-0 z-30 bg-gradient-to-t from-black via-black/80 to-transparent pt-12",
+							isMobile ? "bottom-[4.5rem]" : "bottom-0",
+						)}
+					>
+						<div className="pointer-events-auto">
+							<HomeChatComposer onStartChat={handleHomeChatStart} />
 						</div>
 					</div>
-				</main>
-
-				{isMobile && (
-					<ChatSidebar
-						isChatOpen={chatOpen}
-						setIsChatOpen={(open) => setIsChatOpen(open)}
-						queuedMessage={queuedChatSeed}
-						onConsumeQueuedMessage={() => setQueuedChatSeed(null)}
-						emptyStateSuggestions={highlightsData?.questions}
-					/>
 				)}
 
 				<AddDocumentModal
@@ -536,7 +717,6 @@ export default function NewPage() {
 						if (!open) setSearchPrefill("")
 					}}
 					projectId={selectedProject}
-					novaContainerTags={isNovaSpaces ? novaContainerTags : undefined}
 					onOpenDocument={handleOpenDocument}
 					onAddMemory={() => {
 						analytics.addDocumentModalOpened()

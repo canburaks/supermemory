@@ -25,6 +25,7 @@ import {
 	type IntegrationParamValue,
 } from "@/lib/search-params"
 import Image from "next/image"
+import { IntegrationGridCard } from "@/components/integrations/integration-grid-card"
 
 type CardId =
 	| "mcp"
@@ -238,39 +239,14 @@ export function IntegrationsView() {
 
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
 					{cards.map((card) => (
-						<button
+						<IntegrationGridCard
 							key={card.id}
-							type="button"
+							title={card.title}
+							description={card.description}
+							icon={card.icon}
+							pro={card.pro}
 							onClick={() => setSelectedCard(card.id)}
-							className={cn(
-								"bg-[#080B0F] relative rounded-xl p-4 pt-14",
-								"border border-[#0D121A]",
-								"hover:border-[#3374FF]/50",
-								"transition-all duration-300 cursor-pointer text-left w-full",
-								"hover:bg-[url('/onboarding/bg-gradient-1.png')] hover:bg-[length:200%_auto] hover:bg-[center_top_1rem] hover:bg-no-repeat",
-								"group",
-							)}
-						>
-							{card.pro && (
-								<span className="absolute top-3 left-3 bg-[#4BA0FA] text-[#00171A] text-[10px] font-bold tracking-[0.3px] px-1.5 py-0.5 rounded-[3px]">
-									PRO
-								</span>
-							)}
-							<div className="absolute top-2 right-2 opacity-60 group-hover:opacity-100 transition-opacity">
-								{card.icon}
-							</div>
-							<div className="flex-1">
-								<h3 className="text-white text-sm font-medium">{card.title}</h3>
-								<p
-									className={cn(
-										"text-[#8B8B8B] text-xs leading-relaxed mt-0.5",
-										dmSansClassName(),
-									)}
-								>
-									{card.description}
-								</p>
-							</div>
-						</button>
+						/>
 					))}
 				</div>
 			</div>

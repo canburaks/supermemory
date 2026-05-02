@@ -26,8 +26,7 @@ import { McpPreview } from "./document-cards/mcp-preview"
 import { NotionPreview } from "./document-cards/notion-preview"
 import { getFaviconUrl } from "@/lib/url-helpers"
 import { QuickNoteCard } from "./quick-note-card"
-import { HighlightsCard, type HighlightItem } from "./highlights-card"
-import { GraphCard } from "./memory-graph"
+import type { HighlightItem } from "./highlights-card"
 import { Button } from "@ui/components/button"
 import {
 	categoriesParam,
@@ -44,7 +43,16 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@ui/components/alert-dialog"
-import { CheckIcon, Loader, Trash2Icon, XIcon } from "lucide-react"
+import {
+	AlignLeft,
+	CheckIcon,
+	LayoutGrid,
+	Loader,
+	Trash2Icon,
+	XIcon,
+} from "lucide-react"
+import { useProcessingDocuments } from "@/hooks/use-processing-documents"
+import { TimelineView } from "./timeline-view"
 
 // Document category type
 type DocumentCategory =
@@ -171,7 +179,9 @@ function MemoriesGridLoading() {
 }
 
 // Discriminated union for masonry items
-type MasonryItem = { type: "document"; id: string; data: DocumentWithMemories }
+type MasonryItem =
+	| { type: "document"; id: string; data: DocumentWithMemories }
+	| { type: "quick-note"; id: "quick-note" }
 
 interface QuickNoteProps {
 	onSave: (content: string) => void
@@ -226,8 +236,18 @@ export function MemoriesGrid({
 	emptyStateProps,
 }: MemoriesGridProps) {
 	const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+	const [localViewMode, setLocalViewMode] = useState<"grid" | "timeline">(
+		() => {
+			if (typeof window === "undefined") return "grid"
+			return (
+				(localStorage.getItem("memories-view-mode") as "grid" | "timeline") ??
+				"grid"
+			)
+		},
+	)
 	const { user, isSessionPending } = useAuth()
 	const { effectiveContainerTags } = useProject()
+	const processingStatusMap = useProcessingDocuments()
 	const isMobile = useIsMobile()
 	const [selectedCategories, setSelectedCategories] = useQueryState(
 		"categories",
@@ -309,6 +329,11 @@ export function MemoriesGrid({
 		enabled: !!user,
 	})
 
+	const handleSetViewMode = useCallback((mode: "grid" | "timeline") => {
+		setLocalViewMode(mode)
+		localStorage.setItem("memories-view-mode", mode)
+	}, [])
+
 	const handleCategoryToggle = useCallback(
 		(category: DocumentCategory) => {
 			setSelectedCategories((prev) => {
@@ -334,23 +359,27 @@ export function MemoriesGrid({
 	}, [data])
 
 	const hasQuickNote = !!quickNoteProps
-	const hasHighlights = !!highlightsProps
+	const _hasHighlights = !!highlightsProps
 
 	const masonryItems: MasonryItem[] = useMemo(() => {
 		const items: MasonryItem[] = []
+
+		if (!isMobile && hasQuickNote) {
+			items.push({ type: "quick-note", id: "quick-note" })
+		}
 
 		for (const doc of documents) {
 			items.push({ type: "document", id: doc.id, data: doc })
 		}
 
 		return items
-	}, [documents])
+	}, [documents, isMobile, hasQuickNote])
 
 	// Stable key for Masonry based on document IDs, not item values
 	const masonryKey = useMemo(() => {
 		const docIds = documents.map((d) => d.id).join(",")
-		return `masonry-${documents.length}-${docIds}-${isChatOpen}`
-	}, [documents, isChatOpen])
+		return `masonry-${documents.length}-${docIds}-${isChatOpen}-${hasQuickNote}`
+	}, [documents, isChatOpen, hasQuickNote])
 
 	const isLoadingMore = isFetchingNextPage
 
@@ -402,6 +431,26 @@ export function MemoriesGrid({
 		onBulkDelete?.()
 	}, [onBulkDelete])
 
+	// All mutable values the render function needs — kept in a ref so the
+	// function identity never changes (masonic uses render as a React component
+	// type, so a new reference unmounts every item and kills textarea focus).
+	const renderRef = useRef({
+		quickNoteProps,
+		handleCardClick,
+		isSelectionMode,
+		selectedDocumentIds,
+		onToggleSelection,
+		processingStatusMap,
+	})
+	renderRef.current = {
+		quickNoteProps,
+		handleCardClick,
+		isSelectionMode,
+		selectedDocumentIds,
+		onToggleSelection,
+		processingStatusMap,
+	}
+
 	const renderMasonryItem = useCallback(
 		({
 			index,
@@ -412,6 +461,16 @@ export function MemoriesGrid({
 			data: MasonryItem
 			width: number
 		}) => {
+			const r = renderRef.current
+
+			if (data.type === "quick-note") {
+				return r.quickNoteProps ? (
+					<div style={{ width }} className="p-2">
+						<QuickNoteCard {...r.quickNoteProps} />
+					</div>
+				) : null
+			}
+
 			if (data.type === "document") {
 				const doc = data.data
 				return (
@@ -420,13 +479,16 @@ export function MemoriesGrid({
 							index={index}
 							data={doc}
 							width={width}
-							onClick={handleCardClick}
-							isSelectionMode={isSelectionMode}
-							isSelected={doc.id ? selectedDocumentIds.has(doc.id) : false}
+							onClick={r.handleCardClick}
+							isSelectionMode={r.isSelectionMode}
+							isSelected={doc.id ? r.selectedDocumentIds.has(doc.id) : false}
 							onToggleSelection={
-								doc.id && onToggleSelection
-									? () => onToggleSelection(doc.id as string)
+								doc.id && r.onToggleSelection
+									? () => r.onToggleSelection?.(doc.id as string)
 									: undefined
+							}
+							processingStatus={
+								doc.id ? r.processingStatusMap.get(doc.id) : undefined
 							}
 						/>
 					</ErrorBoundary>
@@ -435,7 +497,8 @@ export function MemoriesGrid({
 
 			return null
 		},
-		[handleCardClick, isSelectionMode, selectedDocumentIds, onToggleSelection],
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[],
 	)
 
 	if (isSessionPending) {
@@ -496,6 +559,35 @@ export function MemoriesGrid({
 						))}
 					</div>
 					<div className="flex items-center gap-2 shrink-0">
+						{/* View mode toggle */}
+						<div className="flex items-center gap-1">
+							<button
+								type="button"
+								aria-label="Grid view"
+								className={cn(
+									"w-8 h-8 flex items-center justify-center rounded-full border transition-colors cursor-pointer",
+									localViewMode === "grid"
+										? "bg-[#00173C] border-[#2261CA33]"
+										: "bg-[#0D121A] border-[#161F2C] hover:bg-[#00173C]",
+								)}
+								onClick={() => handleSetViewMode("grid")}
+							>
+								<LayoutGrid className="w-4 h-4 text-[#737373]" />
+							</button>
+							<button
+								type="button"
+								aria-label="Timeline view"
+								className={cn(
+									"w-8 h-8 flex items-center justify-center rounded-full border transition-colors cursor-pointer",
+									localViewMode === "timeline"
+										? "bg-[#00173C] border-[#2261CA33]"
+										: "bg-[#0D121A] border-[#161F2C] hover:bg-[#00173C]",
+								)}
+								onClick={() => handleSetViewMode("timeline")}
+							>
+								<AlignLeft className="w-4 h-4 text-[#737373]" />
+							</button>
+						</div>
 						{isSelectionMode && (
 							<>
 								<button
@@ -620,41 +712,30 @@ export function MemoriesGrid({
 				</div>
 			) : (
 				<div className="h-full overflow-auto scrollbar-thin">
-					{!isMobile && (hasQuickNote || hasHighlights) && (
-						<div className="flex gap-2 mb-2 px-2">
-							{hasQuickNote && quickNoteProps && (
-								<div className="w-[216px] shrink-0">
-									<QuickNoteCard {...quickNoteProps} />
-								</div>
-							)}
-							{hasHighlights && highlightsProps && (
-								<div className="flex-1 min-w-0">
-									<HighlightsCard {...highlightsProps} />
-								</div>
-							)}
-							<div className="w-[216px] shrink-0">
-								<GraphCard
-									containerTags={effectiveContainerTags}
-									width={200}
-									height={220}
-								/>
-							</div>
-						</div>
+					{localViewMode === "timeline" ? (
+						<TimelineView
+							documents={documents}
+							onOpenDocument={onOpenDocument}
+							hasNextPage={hasNextPage}
+							isFetchingNextPage={isFetchingNextPage}
+							onLoadMore={loadMoreDocuments}
+						/>
+					) : (
+						<Masonry
+							key={masonryKey}
+							items={masonryItems}
+							render={renderMasonryItem}
+							columnGutter={0}
+							rowGutter={0}
+							columnWidth={260}
+							maxColumnCount={isMobile ? 1 : undefined}
+							itemHeightEstimate={200}
+							overscanBy={3}
+							onRender={maybeLoadMore}
+						/>
 					)}
-					<Masonry
-						key={masonryKey}
-						items={masonryItems}
-						render={renderMasonryItem}
-						columnGutter={0}
-						rowGutter={0}
-						columnWidth={216}
-						maxColumnCount={isMobile ? 1 : undefined}
-						itemHeightEstimate={200}
-						overscanBy={3}
-						onRender={maybeLoadMore}
-					/>
 
-					{isLoadingMore && (
+					{isLoadingMore && localViewMode === "grid" && (
 						<div className="py-10 flex items-center justify-center">
 							<Loader className="size-10 animate-spin text-sky-400" />
 						</div>
@@ -676,7 +757,7 @@ function DocumentUrlDisplay({ url }: { url: string }) {
 			<p
 				className={cn(
 					dmSansClassName(),
-					"text-[10px] text-[#737373] line-clamp-1",
+					"text-[11px] text-[#737373] line-clamp-1",
 				)}
 			>
 				{isLoading ? "YouTube" : channelName || "YouTube"}
@@ -688,7 +769,7 @@ function DocumentUrlDisplay({ url }: { url: string }) {
 		<p
 			className={cn(
 				dmSansClassName(),
-				"text-[10px] text-[#737373] line-clamp-1",
+				"text-[11px] text-[#737373] line-clamp-1",
 			)}
 		>
 			{getAbsoluteUrl(url)}
@@ -701,6 +782,74 @@ function isTemporaryId(id: string | null | undefined): boolean {
 	return id.startsWith("temp-") || id.startsWith("temp-file-")
 }
 
+const PROCESSING_WORDS = [
+	"Reading",
+	"Absorbing",
+	"Scanning",
+	"Thinking",
+	"Connecting",
+	"Pondering",
+	"Synthesizing",
+	"Reflecting",
+	"Understanding",
+	"Organizing",
+	"Memorizing",
+	"Filing",
+	"Saving",
+	"Learning",
+	"Cataloguing",
+	"Weaving",
+]
+
+function ProcessingBadge() {
+	const [wordIndex, setWordIndex] = useState(() =>
+		Math.floor(Math.random() * PROCESSING_WORDS.length),
+	)
+
+	useEffect(() => {
+		const id = setInterval(() => {
+			setWordIndex((i) => (i + 1) % PROCESSING_WORDS.length)
+		}, 1800)
+		return () => clearInterval(id)
+	}, [])
+
+	return (
+		<div className="flex items-center gap-1">
+			<span className="relative flex h-1.5 w-1.5 shrink-0">
+				<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+				<span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-sky-400" />
+			</span>
+			<span
+				className={cn(
+					dmSansClassName(),
+					"text-[10px] text-sky-400 font-medium",
+				)}
+			>
+				{PROCESSING_WORDS[wordIndex]}
+			</span>
+		</div>
+	)
+}
+
+function DoneBadge() {
+	return (
+		<div className="flex items-center gap-1">
+			<CheckIcon
+				className="w-2.5 h-2.5 text-emerald-400 shrink-0"
+				strokeWidth={3}
+			/>
+			<span
+				className={cn(
+					dmSansClassName(),
+					"text-[10px] text-emerald-400 font-medium",
+				)}
+			>
+				Done
+			</span>
+		</div>
+	)
+}
+
 const DocumentCard = memo(
 	({
 		index: _index,
@@ -710,6 +859,7 @@ const DocumentCard = memo(
 		isSelectionMode = false,
 		isSelected = false,
 		onToggleSelection,
+		processingStatus,
 	}: {
 		index: number
 		data: DocumentWithMemories
@@ -718,12 +868,26 @@ const DocumentCard = memo(
 		isSelectionMode?: boolean
 		isSelected?: boolean
 		onToggleSelection?: () => void
+		processingStatus?: string
 	}) => {
 		const canSelect =
 			!isTemporaryId(document.id) && !isTemporaryId(document.customId)
 		const [rotation, setRotation] = useState({ rotateX: 0, rotateY: 0 })
 		const cardRef = useRef<HTMLButtonElement>(null)
 		const [ogData, setOgData] = useState<OgData | null>(null)
+		const [showDone, setShowDone] = useState(false)
+		const prevStatusRef = useRef<string | undefined>(processingStatus)
+
+		useEffect(() => {
+			const prev = prevStatusRef.current
+			prevStatusRef.current = processingStatus
+			// Show the "done" checkmark briefly when the card leaves the processing map
+			if (prev && !processingStatus) {
+				setShowDone(true)
+				const id = setTimeout(() => setShowDone(false), 2000)
+				return () => clearTimeout(id)
+			}
+		}, [processingStatus])
 
 		const ogImage = (document as DocumentWithMemories & { ogImage?: string })
 			.ogImage
@@ -847,15 +1011,16 @@ const DocumentCard = memo(
 					) && (
 						<div className="pb-[10px] space-y-1">
 							{document.url &&
-								!document.url.includes("x.com") &&
-								!document.url.includes("twitter.com") &&
-								!document.url.includes("files.supermemory.ai") && (
+								!document.url.includes("files.supermemory.ai") &&
+								(document.title ||
+									(!document.url.includes("x.com") &&
+										!document.url.includes("twitter.com"))) && (
 									<div className="px-3">
 										<div className="flex justify-between items-center gap-2">
 											<p
 												className={cn(
 													dmSansClassName(),
-													"text-[12px] text-[#E5E5E5] line-clamp-1 font-semibold",
+													"text-[13px] text-[#E5E5E5] line-clamp-1 font-semibold",
 												)}
 											>
 												{document.title || ogData?.title || "Untitled Document"}
@@ -878,16 +1043,22 @@ const DocumentCard = memo(
 							<div
 								className={cn(
 									"flex items-center px-3",
-									document.memoryEntries.length > 0
+									processingStatus ||
+										showDone ||
+										document.memoryEntries.length > 0
 										? "justify-between"
 										: "justify-end",
 								)}
 							>
-								{document.memoryEntries.length > 0 && (
+								{processingStatus ? (
+									<ProcessingBadge />
+								) : showDone ? (
+									<DoneBadge />
+								) : document.memoryEntries.length > 0 ? (
 									<p
 										className={cn(
 											dmSansClassName(),
-											"text-[10px] text-[#369BFD] font-semibold flex items-center gap-1",
+											"text-[11px] text-[#369BFD] font-semibold flex items-center gap-1",
 										)}
 										style={{
 											background:
@@ -900,11 +1071,11 @@ const DocumentCard = memo(
 										<SyncLogoIcon className="w-[12.33px] h-[10px]" />
 										{document.memoryEntries.length}
 									</p>
-								)}
+								) : null}
 								<p
 									className={cn(
 										dmSansClassName(),
-										"text-[10px] text-[#737373] line-clamp-1",
+										"text-[11px] text-[#737373] line-clamp-1",
 									)}
 								>
 									{new Date(document.createdAt).toLocaleDateString("en-US", {
@@ -939,10 +1110,7 @@ function ContentPreview({
 		return <GoogleDocsPreview document={document} />
 	}
 
-	if (
-		document.url?.includes("x.com/") &&
-		document.metadata?.sm_internal_twitter_metadata
-	) {
+	if (document.metadata?.sm_internal_twitter_metadata) {
 		return (
 			<TweetPreview
 				data={
@@ -950,6 +1118,13 @@ function ContentPreview({
 				}
 			/>
 		)
+	}
+
+	if (
+		document.url?.includes("x.com/") ||
+		document.url?.includes("twitter.com/")
+	) {
+		return <NotePreview document={document} />
 	}
 
 	if (document.source === "mcp") {

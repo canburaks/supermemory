@@ -83,7 +83,7 @@ export default function WelcomeLayout({ children }: { children: ReactNode }) {
 				if (isMountedRef.current) {
 					setShowWelcomeContent(true)
 				}
-			}, 1000)
+			}, 400)
 			return () => clearTimeout(timer)
 		}
 		setShowWelcomeContent(true)
@@ -97,7 +97,7 @@ export default function WelcomeLayout({ children }: { children: ReactNode }) {
 				setTimeout(() => {
 					if (isMountedRef.current) {
 						analytics.onboardingStepViewed({ step: "welcome", trigger: "auto" })
-						router.replace("/onboarding/welcome?step=welcome")
+						router.replace("/old/onboarding/welcome?step=welcome")
 					}
 				}, 2000),
 			)
@@ -109,7 +109,7 @@ export default function WelcomeLayout({ children }: { children: ReactNode }) {
 							step: "username",
 							trigger: "auto",
 						})
-						router.replace("/onboarding/welcome?step=username")
+						router.replace("/old/onboarding/welcome?step=username")
 					}
 				}, 2000),
 			)
@@ -133,14 +133,14 @@ export default function WelcomeLayout({ children }: { children: ReactNode }) {
 	const goToStep = useCallback(
 		(step: WelcomeStep) => {
 			analytics.onboardingStepViewed({ step, trigger: "user" })
-			router.push(`/onboarding/welcome?step=${step}`)
+			router.push(`/old/onboarding/welcome?step=${step}`)
 		},
 		[router],
 	)
 
 	const goToSetup = useCallback(
-		(step = "relatable") => {
-			router.push(`/onboarding/setup?step=${step}`)
+		(step = "integrations") => {
+			router.push(`/old/onboarding/setup?step=${step}`)
 		},
 		[router],
 	)
