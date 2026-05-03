@@ -444,13 +444,14 @@ export default function OnboardingPage() {
 
 	const ensureOrg = useCallback(async () => {
 		if (organizations && organizations.length > 0) return
-		const name = user?.name ?? user?.email ?? "My Workspace"
-		const newOrg = await authClient.organization.create({
+		const name = user?.name || user?.email || "Personal"
+		const slug = generateOrgSlug(name)
+		const result = await authClient.organization.create({
 			name,
-			slug: generateOrgSlug(name),
+			slug,
 			metadata: { signupSource: "consumer" },
 		})
-		await setActiveOrg(newOrg.slug)
+		await setActiveOrg(result.data?.slug ?? slug)
 		if (user?.name) {
 			await authClient.updateUser({
 				displayUsername: user.name,
