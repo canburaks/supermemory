@@ -187,11 +187,37 @@ export function Header({ onAddMemory, onOpenSearch }: HeaderProps) {
 								key={mode}
 								type="button"
 								role="tab"
-								aria-selected={viewMode === mode}
+								aria-selected={
+									mode === "integrations"
+										? [
+												"integrations",
+												"mcp",
+												"plugins",
+												"chrome",
+												"connections",
+												"shortcuts",
+												"raycast",
+												"import",
+											].includes(viewMode)
+										: viewMode === mode
+								}
 								onClick={() => void setViewMode(mode)}
 								className={cn(
 									"inline-flex h-[calc(100%-1px)] min-h-0 cursor-pointer items-center justify-center gap-1 rounded-full border border-transparent px-2.5 text-xs font-medium whitespace-nowrap transition-colors sm:gap-1.5 sm:px-3 sm:text-sm",
-									viewMode === mode
+									(
+										mode === "integrations"
+											? [
+													"integrations",
+													"mcp",
+													"plugins",
+													"chrome",
+													"connections",
+													"shortcuts",
+													"raycast",
+													"import",
+												].includes(viewMode)
+											: viewMode === mode
+									)
 										? "border-[#2261CA33] bg-[#00173C] text-white"
 										: "text-foreground hover:bg-white/5",
 									dmSansClassName(),
@@ -372,6 +398,59 @@ export function Header({ onAddMemory, onOpenSearch }: HeaderProps) {
 				isOpen={feedbackOpen}
 				onClose={() => setFeedbackOpen(false)}
 			/>
+		</div>
+	)
+}
+
+export function PublicHeader() {
+	return (
+		<div className="relative z-10 flex shrink-0 items-center justify-between gap-2 p-2.5 md:p-3">
+			<Link
+				href="/"
+				className="flex items-center gap-2 hover:opacity-90 transition-opacity"
+			>
+				<Logo className="h-6 md:h-7" />
+				<div className="hidden sm:flex flex-col items-start">
+					<p className="text-[10px] leading-tight text-[#6B6B6B]">Your AI</p>
+					<p className="-mt-0.5 text-base leading-none font-medium text-white/90">
+						supermemory
+					</p>
+				</div>
+			</Link>
+
+			<div className="flex items-center gap-2">
+				<p
+					className={cn(
+						"hidden md:block text-[13px] text-[#4B5563]",
+						dmSansClassName(),
+					)}
+				>
+					Connect your tools, search everything.
+				</p>
+				<Link href="/login">
+					<button
+						type="button"
+						className={cn(
+							"text-[13px] font-medium text-[#8B8B8B] hover:text-white transition-colors px-3 h-8 cursor-pointer",
+							dmSansClassName(),
+						)}
+					>
+						Sign in
+					</button>
+				</Link>
+				<Link href="/login/new">
+					<button
+						type="button"
+						className={cn(
+							"flex items-center gap-1.5 text-[13px] font-medium text-white",
+							"bg-[#4BA0FA] hover:bg-[#4BA0FA]/90 rounded-full px-4 h-8 transition-colors cursor-pointer",
+							dmSansClassName(),
+						)}
+					>
+						Get started free
+					</button>
+				</Link>
+			</div>
 		</div>
 	)
 }

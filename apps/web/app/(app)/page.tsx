@@ -10,12 +10,19 @@ import {
 } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import { useQueryState } from "nuqs"
-import { Header } from "@/components/header"
+import { Header, PublicHeader } from "@/components/header"
 import { ChatSidebar, HomeChatComposer } from "@/components/chat"
 import { DashboardView } from "@/components/dashboard-view"
 import { MemoriesGrid } from "@/components/memories-grid"
 import { GraphLayoutView } from "@/components/graph-layout-view"
-import { IntegrationsView } from "@/components/integrations-view"
+import { IntegrationsView, DetailWrapper } from "@/components/integrations-view"
+import { MCPDetailView } from "@/components/mcp-modal/mcp-detail-view"
+import { XBookmarksDetailView } from "@/components/onboarding/x-bookmarks-detail-view"
+import { ChromeDetail } from "@/components/integrations/chrome-detail"
+import { ShortcutsDetail } from "@/components/integrations/shortcuts-detail"
+import { RaycastDetail } from "@/components/integrations/raycast-detail"
+import { ConnectionsDetail } from "@/components/integrations/connections-detail"
+import { PluginsDetail } from "@/components/integrations/plugins-detail"
 import { AnimatedGradientBackground } from "@/components/animated-gradient-background"
 import { AddDocumentModal } from "@/components/add-document"
 import { DocumentModal } from "@/components/document-modal"
@@ -50,8 +57,6 @@ import {
 	qParam,
 	docParam,
 	fullscreenParam,
-	integrationParam,
-	pluginsPanelParam,
 	type IntegrationParamValue,
 } from "@/lib/search-params"
 import { getChatSpaceDisplayLabel } from "@/lib/chat-space-label"
@@ -148,20 +153,6 @@ export default function NewPage() {
 		"fullscreen",
 		fullscreenParam,
 	)
-	const [integrationFromUrl, setIntegration] = useQueryState(
-		"integration",
-		integrationParam,
-	)
-	const [pluginsPanelFromUrl, setPluginsPanel] = useQueryState(
-		"plugins",
-		pluginsPanelParam,
-	)
-
-	useEffect(() => {
-		if (integrationFromUrl || pluginsPanelFromUrl === true) {
-			void setViewMode("integrations")
-		}
-	}, [integrationFromUrl, pluginsPanelFromUrl, setViewMode])
 
 	// Ephemeral local state (not worth URL-encoding)
 	const [fullscreenInitialContent, setFullscreenInitialContent] = useState("")
@@ -494,20 +485,14 @@ export default function NewPage() {
 
 	const handleOpenIntegrations = useCallback(
 		(integration?: IntegrationParamValue) => {
-			setViewMode("integrations")
-			if (integration) {
-				setIntegration(integration)
-			} else {
-				setIntegration(null)
-			}
+			void setViewMode(integration ?? "integrations")
 		},
-		[setViewMode, setIntegration],
+		[setViewMode],
 	)
 
 	const handleOpenPlugins = useCallback(() => {
-		void setViewMode("integrations")
-		void setPluginsPanel(true)
-	}, [setViewMode, setPluginsPanel])
+		void setViewMode("plugins")
+	}, [setViewMode])
 
 	const handleAddMemory = useCallback(
 		(tab: "note" | "link") => {
@@ -564,16 +549,20 @@ export default function NewPage() {
 						/>
 					</>
 				)}
-				<Header
-					onAddMemory={() => {
-						analytics.addDocumentModalOpened()
-						setAddDoc("note")
-					}}
-					onOpenSearch={() => {
-						analytics.searchOpened({ source: "header" })
-						setIsSearchOpen(true)
-					}}
-				/>
+				{!session && viewMode === "mcp" ? (
+					<PublicHeader />
+				) : (
+					<Header
+						onAddMemory={() => {
+							analytics.addDocumentModalOpened()
+							setAddDoc("note")
+						}}
+						onOpenSearch={() => {
+							analytics.searchOpened({ source: "header" })
+							setIsSearchOpen(true)
+						}}
+					/>
+				)}
 				<AnimatePresence mode="wait">
 					<motion.main
 						key={`main-container-${viewMode}`}
@@ -611,6 +600,44 @@ export default function NewPage() {
 									<div className="min-h-0 min-w-0 flex-1 p-4 pt-2! md:p-6 md:pr-0">
 										<IntegrationsView />
 									</div>
+								) : viewMode === "mcp" ? (
+									<MCPDetailView
+										onBack={() => void setViewMode("integrations")}
+									/>
+								) : viewMode === "plugins" ? (
+									<DetailWrapper
+										onBack={() => void setViewMode("integrations")}
+									>
+										<PluginsDetail />
+									</DetailWrapper>
+								) : viewMode === "chrome" ? (
+									<DetailWrapper
+										onBack={() => void setViewMode("integrations")}
+									>
+										<ChromeDetail />
+									</DetailWrapper>
+								) : viewMode === "shortcuts" ? (
+									<DetailWrapper
+										onBack={() => void setViewMode("integrations")}
+									>
+										<ShortcutsDetail />
+									</DetailWrapper>
+								) : viewMode === "raycast" ? (
+									<DetailWrapper
+										onBack={() => void setViewMode("integrations")}
+									>
+										<RaycastDetail />
+									</DetailWrapper>
+								) : viewMode === "connections" ? (
+									<DetailWrapper
+										onBack={() => void setViewMode("integrations")}
+									>
+										<ConnectionsDetail />
+									</DetailWrapper>
+								) : viewMode === "import" ? (
+									<XBookmarksDetailView
+										onBack={() => void setViewMode("integrations")}
+									/>
 								) : viewMode === "graph" && !isMobile ? (
 									<div className="min-h-0 min-w-0 flex-1">
 										<GraphLayoutView />

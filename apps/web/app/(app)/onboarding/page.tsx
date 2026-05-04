@@ -172,7 +172,7 @@ function buildSpotlightCatalog(
 		analytics.onboardingIntegrationClicked({ integration })
 
 	const openPluginsPanel = () => {
-		void router.push("/?view=integrations&plugins=true")
+		void router.push("/?view=plugins")
 	}
 
 	return {
@@ -229,7 +229,7 @@ function buildSpotlightCatalog(
 				pro: true,
 				onOpen: () => {
 					track("connections")
-					void router.push("/?view=integrations&integration=connections")
+					void router.push("/?view=connections")
 				},
 			},
 		],
@@ -272,7 +272,7 @@ function buildSpotlightCatalog(
 				icon: <img src="/onboarding/x.png" alt="X" className="size-10" />,
 				onOpen: () => {
 					track("import_x")
-					void router.push("/?view=integrations&integration=import")
+					void router.push("/?view=import")
 				},
 			},
 		],

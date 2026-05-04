@@ -3,18 +3,25 @@
 import type { ReactNode } from "react"
 import { cn } from "@lib/utils"
 import { dmSansClassName } from "@/lib/fonts"
+import { ExternalLink } from "lucide-react"
 
 export function IntegrationGridCard({
 	title,
 	description,
 	icon,
 	pro,
+	statusLabel,
+	statusVariant = "neutral",
+	isExternal,
 	onClick,
 }: {
 	title: string
 	description: string
 	icon: ReactNode
 	pro?: boolean
+	statusLabel?: string
+	statusVariant?: "connected" | "neutral"
+	isExternal?: boolean
 	onClick: () => void
 }) {
 	return (
@@ -35,6 +42,9 @@ export function IntegrationGridCard({
 					PRO
 				</span>
 			) : null}
+			{isExternal ? (
+				<ExternalLink className="absolute top-3 left-3 size-3 text-[#3A4455] opacity-0 group-hover:opacity-100 transition-opacity" />
+			) : null}
 			<div className="absolute top-2 right-2 opacity-60 group-hover:opacity-100 transition-opacity">
 				{icon}
 			</div>
@@ -48,6 +58,18 @@ export function IntegrationGridCard({
 				>
 					{description}
 				</p>
+				{statusLabel ? (
+					<span
+						className={cn(
+							"inline-block mt-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+							statusVariant === "connected"
+								? "bg-[#00AC3F]/10 text-[#00AC3F]"
+								: "bg-[#737373]/10 text-[#737373]",
+						)}
+					>
+						{statusLabel}
+					</span>
+				) : null}
 			</div>
 		</button>
 	)

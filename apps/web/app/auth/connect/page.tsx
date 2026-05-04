@@ -349,7 +349,7 @@ function AuthConnectContent() {
 						</button>
 
 						<a
-							href="https://app.supermemory.ai/?plugins=true"
+							href="https://app.supermemory.ai/?view=plugins"
 							className={dmSans125ClassName(
 								"text-[12px] text-[#737373] hover:text-[#FAFAFA] transition-colors",
 							)}

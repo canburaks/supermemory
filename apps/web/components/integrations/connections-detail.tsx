@@ -7,7 +7,7 @@ import { hasActivePlan } from "@lib/queries"
 import { GoogleDrive, Notion, OneDrive } from "@ui/assets/icons"
 import { useCustomer } from "autumn-js/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Check, Plus, Trash2, Zap } from "lucide-react"
+import { Check, Clock, FolderOpen, Plus, Trash2, Zap } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useQueryState } from "nuqs"
@@ -68,10 +68,10 @@ function ConnectionRow({
 	}
 
 	const getProjectName = (tag: string): string => {
-		if (tag === DEFAULT_PROJECT_ID) return "Default Project"
+		if (tag === DEFAULT_PROJECT_ID) return "Default"
 		return (
 			projects.find((p) => p.containerTag === tag)?.name ??
-			tag.replace(/^sm_project_/, "")
+			tag.replace(/^sm_project_/, "").replace(/_/g, " ")
 		)
 	}
 
@@ -136,31 +136,48 @@ function ConnectionRow({
 						<Trash2 className="size-[22px]" />
 					</button>
 				</div>
-				<div className="flex items-center gap-2 flex-wrap">
-					{projectName && (
-						<>
+				<div className="flex items-center gap-3 pt-2.5 border-t border-[rgba(82,89,102,0.12)]">
+					<div className="flex items-center gap-2 flex-1 flex-wrap">
+						{projectName && (
+							<div className="flex items-center gap-1">
+								<FolderOpen className="size-3 text-[#4B5563]" />
+								<span
+									className={cn(
+										dmSans125ClassName(),
+										"text-[12px] text-[#737373] capitalize",
+									)}
+								>
+									{projectName}
+								</span>
+							</div>
+						)}
+						<div className="flex items-center gap-1">
+							<Clock className="size-3 text-[#4B5563]" />
 							<span
 								className={cn(
 									dmSans125ClassName(),
-									"text-[14px] text-[#737373]",
+									"text-[12px] text-[#737373]",
 								)}
 							>
-								Project: {projectName}
+								{formatRelativeTime(connection.createdAt)}
 							</span>
-							<div className="size-[3px] rounded-full bg-[#737373]" />
-						</>
-					)}
-					<span
-						className={cn(dmSans125ClassName(), "text-[14px] text-[#737373]")}
-					>
-						Added: {formatRelativeTime(connection.createdAt)}
-					</span>
-					<div className="size-[3px] rounded-full bg-[#737373]" />
-					<span
-						className={cn(dmSans125ClassName(), "text-[14px] text-[#737373]")}
-					>
-						{documentCount} {config.documentLabel} connected
-					</span>
+						</div>
+					</div>
+					<div className="flex items-baseline gap-1 shrink-0">
+						<span
+							className={cn(
+								dmSans125ClassName(),
+								"text-[14px] font-semibold text-[#FAFAFA]",
+							)}
+						>
+							{documentCount}
+						</span>
+						<span
+							className={cn(dmSans125ClassName(), "text-[12px] text-[#737373]")}
+						>
+							{config.documentLabel}
+						</span>
+					</div>
 				</div>
 			</div>
 		</div>
