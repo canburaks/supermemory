@@ -21,7 +21,6 @@ import { XBookmarksDetailView } from "@/components/onboarding/x-bookmarks-detail
 import { ChromeDetail } from "@/components/integrations/chrome-detail"
 import { ShortcutsDetail } from "@/components/integrations/shortcuts-detail"
 import { RaycastDetail } from "@/components/integrations/raycast-detail"
-import { ConnectionsDetail } from "@/components/integrations/connections-detail"
 import { PluginsDetail } from "@/components/integrations/plugins-detail"
 import { AnimatedGradientBackground } from "@/components/animated-gradient-background"
 import { AddDocumentModal } from "@/components/add-document"
@@ -627,12 +626,6 @@ export default function NewPage() {
 										onBack={() => void setViewMode("integrations")}
 									>
 										<RaycastDetail />
-									</DetailWrapper>
-								) : viewMode === "connections" ? (
-									<DetailWrapper
-										onBack={() => void setViewMode("integrations")}
-									>
-										<ConnectionsDetail />
 									</DetailWrapper>
 								) : viewMode === "import" ? (
 									<XBookmarksDetailView

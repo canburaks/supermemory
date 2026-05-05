@@ -389,10 +389,14 @@ function MemoryOfDayCard({ data }: { data: MemoryOfDay }) {
 
 	if (!memory) return null
 
+	const href = data.sourceDocumentId
+		? `/?view=list&doc=${encodeURIComponent(data.sourceDocumentId)}`
+		: "/?view=list"
+
 	return (
 		<button
 			type="button"
-			onClick={() => router.push("/?view=list")}
+			onClick={() => router.push(href)}
 			className={cn(
 				"group w-full h-full text-left bg-[#0B1017] border border-[rgba(255,255,255,0.05)] rounded-[18px] p-3 flex flex-col justify-between hover:border-[rgba(255,255,255,0.10)] transition-colors cursor-pointer",
 				dmSansClassName(),

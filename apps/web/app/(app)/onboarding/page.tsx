@@ -229,7 +229,7 @@ function buildSpotlightCatalog(
 				pro: true,
 				onOpen: () => {
 					track("connections")
-					void router.push("/?view=connections")
+					void router.push("/?add=connect")
 				},
 			},
 		],

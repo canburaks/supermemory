@@ -23,7 +23,8 @@ import { analytics } from "@/lib/analytics"
 import Image from "next/image"
 import { IntegrationGridCard } from "@/components/integrations/integration-grid-card"
 import { useViewMode } from "@/lib/view-mode-context"
-import type { ViewParamValue } from "@/lib/search-params"
+import { addDocumentParam, type ViewParamValue } from "@/lib/search-params"
+import { useQueryState } from "nuqs"
 
 type Connection = z.infer<typeof ConnectionResponseSchema>
 
@@ -166,6 +167,7 @@ const CARD_GROUPS: Array<{ label: string; ids: CardId[] }> = [
 
 export function IntegrationsView() {
 	const { setViewMode } = useViewMode()
+	const [, setAddDoc] = useQueryState("add", addDocumentParam)
 	const { org } = useAuth()
 	const autumn = useCustomer()
 	const hasProProduct = hasActivePlan(autumn.customer?.products, "api_pro")
@@ -290,6 +292,8 @@ export function IntegrationsView() {
 														analytics.onboardingChromeExtensionClicked({
 															source: "integrations",
 														})
+													} else if (card.id === "connections") {
+														void setAddDoc("connect")
 													} else {
 														void setViewMode(card.id as ViewParamValue)
 													}
