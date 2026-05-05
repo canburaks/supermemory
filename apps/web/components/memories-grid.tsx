@@ -45,6 +45,7 @@ import {
 } from "@ui/components/alert-dialog"
 import {
 	AlignLeft,
+	BoxSelect,
 	CheckIcon,
 	LayoutGrid,
 	Loader,
@@ -180,7 +181,13 @@ function MemoriesGridLoading() {
 
 // Discriminated union for masonry items
 type MasonryItem =
-	| { type: "document"; id: string; data: DocumentWithMemories }
+	| {
+			type: "document"
+			id: string
+			data: DocumentWithMemories
+			isSelectionMode: boolean
+			isSelected: boolean
+	  }
 	| { type: "quick-note"; id: "quick-note" }
 
 interface QuickNoteProps {
@@ -369,11 +376,17 @@ export function MemoriesGrid({
 		}
 
 		for (const doc of documents) {
-			items.push({ type: "document", id: doc.id, data: doc })
+			items.push({
+				type: "document",
+				id: doc.id,
+				data: doc,
+				isSelectionMode,
+				isSelected: doc.id ? selectedDocumentIds.has(doc.id) : false,
+			})
 		}
 
 		return items
-	}, [documents, isMobile, hasQuickNote])
+	}, [documents, isMobile, hasQuickNote, isSelectionMode, selectedDocumentIds])
 
 	// Stable key for Masonry based on document IDs, not item values
 	const masonryKey = useMemo(() => {
@@ -437,16 +450,12 @@ export function MemoriesGrid({
 	const renderRef = useRef({
 		quickNoteProps,
 		handleCardClick,
-		isSelectionMode,
-		selectedDocumentIds,
 		onToggleSelection,
 		processingStatusMap,
 	})
 	renderRef.current = {
 		quickNoteProps,
 		handleCardClick,
-		isSelectionMode,
-		selectedDocumentIds,
 		onToggleSelection,
 		processingStatusMap,
 	}
@@ -480,8 +489,8 @@ export function MemoriesGrid({
 							data={doc}
 							width={width}
 							onClick={r.handleCardClick}
-							isSelectionMode={r.isSelectionMode}
-							isSelected={doc.id ? r.selectedDocumentIds.has(doc.id) : false}
+							isSelectionMode={data.isSelectionMode}
+							isSelected={data.isSelected}
 							onToggleSelection={
 								doc.id && r.onToggleSelection
 									? () => r.onToggleSelection?.(doc.id as string)
@@ -518,12 +527,16 @@ export function MemoriesGrid({
 	const isEmpty = documents.length === 0 && !isPending
 	const showNovaEmptyState = isEmpty && emptyStateProps
 
+	const allVisibleSelected =
+		documents.length > 0 &&
+		documents.every((d) => d.id && selectedDocumentIds.has(d.id))
+
 	return (
 		<div className="relative">
-			{!isEmpty && (
+			{!isEmpty && !isSelectionMode && (
 				<div
 					id="filter-pills"
-					className="flex items-center justify-between gap-4 mb-3"
+					className="flex items-center justify-between gap-4 mb-3 pr-2"
 				>
 					<div className="flex flex-wrap items-center gap-1.5">
 						<Button
@@ -559,89 +572,126 @@ export function MemoriesGrid({
 						))}
 					</div>
 					<div className="flex items-center gap-2 shrink-0">
-						{/* View mode toggle */}
-						<div className="flex items-center gap-1">
+						{/* View mode toggle — segmented control */}
+						<div
+							role="tablist"
+							aria-label="View mode"
+							className={cn(
+								dmSansClassName(),
+								"inline-flex h-8 items-center gap-0.5 rounded-full border border-[#161F2C] bg-[#0D121A] p-0.5",
+							)}
+						>
 							<button
 								type="button"
-								aria-label="Grid view"
+								role="tab"
+								aria-selected={localViewMode === "grid"}
 								className={cn(
-									"w-8 h-8 flex items-center justify-center rounded-full border transition-colors cursor-pointer",
+									"inline-flex h-full items-center justify-center gap-1.5 rounded-full border px-2.5 text-xs font-medium cursor-pointer transition-colors",
 									localViewMode === "grid"
-										? "bg-[#00173C] border-[#2261CA33]"
-										: "bg-[#0D121A] border-[#161F2C] hover:bg-[#00173C]",
+										? "border-[#2261CA33] bg-[#00173C] text-white"
+										: "border-transparent text-[#737373] hover:bg-white/5",
 								)}
 								onClick={() => handleSetViewMode("grid")}
 							>
-								<LayoutGrid className="w-4 h-4 text-[#737373]" />
+								<LayoutGrid className="w-3.5 h-3.5" />
+								Grid
 							</button>
 							<button
 								type="button"
-								aria-label="Timeline view"
+								role="tab"
+								aria-selected={localViewMode === "timeline"}
 								className={cn(
-									"w-8 h-8 flex items-center justify-center rounded-full border transition-colors cursor-pointer",
+									"inline-flex h-full items-center justify-center gap-1.5 rounded-full border px-2.5 text-xs font-medium cursor-pointer transition-colors",
 									localViewMode === "timeline"
-										? "bg-[#00173C] border-[#2261CA33]"
-										: "bg-[#0D121A] border-[#161F2C] hover:bg-[#00173C]",
+										? "border-[#2261CA33] bg-[#00173C] text-white"
+										: "border-transparent text-[#737373] hover:bg-white/5",
 								)}
 								onClick={() => handleSetViewMode("timeline")}
 							>
-								<AlignLeft className="w-4 h-4 text-[#737373]" />
+								<AlignLeft className="w-3.5 h-3.5" />
+								Timeline
 							</button>
 						</div>
-						{isSelectionMode && (
-							<>
-								<button
-									type="button"
-									aria-label="Exit selection mode"
-									className="w-8 h-8 flex items-center justify-center rounded-full border border-[#161F2C] bg-[#0D121A] hover:bg-[#00173C] transition-colors cursor-pointer"
-									onClick={onClearSelection}
-								>
-									<XIcon className="w-4 h-4 text-[#737373]" />
-								</button>
-								{selectedDocumentIds.size > 0 ? (
-									<>
-										<button
-											type="button"
-											className={cn(
-												dmSansClassName(),
-												"text-xs text-[#737373] hover:text-white transition-colors cursor-pointer",
-											)}
-											onClick={handleSelectAllVisible}
-										>
-											Select all
-										</button>
-										<button
-											type="button"
-											className={cn(
-												dmSansClassName(),
-												"flex items-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors cursor-pointer disabled:opacity-50",
-											)}
-											onClick={handleBulkDeleteClick}
-											disabled={isBulkDeleting}
-										>
-											<Trash2Icon className="w-3 h-3" />
-											Delete ({selectedDocumentIds.size})
-										</button>
-									</>
-								) : (
-									<p
-										className={cn(dmSansClassName(), "text-xs text-[#737373]")}
-									>
-										Select one or more documents
-									</p>
-								)}
-							</>
-						)}
-						{!isSelectionMode && onEnterSelectionMode && (
+						{onEnterSelectionMode && (
 							<button
 								type="button"
-								aria-label="Enter selection mode"
-								className="w-8 h-8 flex items-center justify-center rounded-full border border-[#161F2C] bg-[#0D121A] hover:bg-[#00173C] transition-colors cursor-pointer"
+								aria-label="Select documents"
+								title="Select documents"
+								className="w-8 h-8 flex items-center justify-center rounded-full border border-[#161F2C] bg-[#0D121A] hover:bg-[#00173C] hover:border-[#2261CA33] transition-colors cursor-pointer"
 								onClick={onEnterSelectionMode}
 							>
-								<div className="w-3 h-3 rounded-[2.25px] border border-[#737373]" />
+								<BoxSelect className="w-4 h-4 text-[#737373]" />
 							</button>
 						)}
+					</div>
+				</div>
+			)}
+
+			{!isEmpty && isSelectionMode && (
+				<div
+					id="selection-toolbar"
+					className={cn(
+						dmSansClassName(),
+						"flex items-center justify-between gap-3 mb-3 mr-2 px-3 py-2 rounded-full border border-[#2261CA33] bg-[#00173C]/40",
+					)}
+				>
+					<div className="flex items-center gap-2 min-w-0">
+						<span className="flex items-center gap-1.5 text-xs text-[#FAFAFA] font-medium shrink-0">
+							<span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[#369BFD] text-[#0B0F14] text-[11px] font-semibold">
+								{selectedDocumentIds.size}
+							</span>
+							{selectedDocumentIds.size === 1 ? "selected" : "selected"}
+						</span>
+						{selectedDocumentIds.size === 0 && (
+							<span className="text-xs text-[#737373] truncate">
+								Tap documents to select
+							</span>
+						)}
+					</div>
+					<div className="flex items-center gap-1 shrink-0">
+						<button
+							type="button"
+							className={cn(
+								"text-xs px-2.5 h-7 rounded-full transition-colors cursor-pointer",
+								allVisibleSelected
+									? "text-[#737373] hover:text-white"
+									: "text-[#FAFAFA] hover:bg-white/5",
+							)}
+							onClick={
+								allVisibleSelected ? onClearSelection : handleSelectAllVisible
+							}
+						>
+							{allVisibleSelected ? "Deselect all" : "Select visible"}
+						</button>
+						<button
+							type="button"
+							className={cn(
+								"flex items-center gap-1 text-xs px-3 h-7 rounded-full transition-colors cursor-pointer",
+								selectedDocumentIds.size === 0 || isBulkDeleting
+									? "text-[#737373]/60 cursor-not-allowed"
+									: "text-red-400 hover:text-red-300 hover:bg-red-500/10",
+							)}
+							onClick={handleBulkDeleteClick}
+							disabled={selectedDocumentIds.size === 0 || isBulkDeleting}
+						>
+							<Trash2Icon className="w-3 h-3" />
+							<span>Delete</span>
+							{selectedDocumentIds.size > 0 && (
+								<span className="text-red-400/70">
+									({selectedDocumentIds.size})
+								</span>
+							)}
+						</button>
+						<div className="w-px h-4 bg-[#161F2C] mx-1" />
+						<button
+							type="button"
+							aria-label="Exit selection mode"
+							className="flex items-center gap-1 text-xs px-3 h-7 rounded-full text-[#737373] hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+							onClick={onClearSelection}
+						>
+							<XIcon className="w-3 h-3" />
+							<span>Done</span>
+						</button>
 					</div>
 				</div>
 			)}

@@ -13,7 +13,8 @@ export function useProject() {
 
 	const selectedProject = selectedProjects[0] ?? DEFAULT_PROJECT_ID
 
-	const effectiveContainerTags = selectedProjects
+	const effectiveContainerTags =
+		selectedProjects.length === 0 ? [DEFAULT_PROJECT_ID] : selectedProjects
 
 	const setSelectedProjects = useCallback(
 		(projects: string[]) => {
