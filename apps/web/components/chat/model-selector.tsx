@@ -11,7 +11,7 @@ import { analytics } from "@/lib/analytics"
 interface ChatModelSelectorProps {
 	selectedModel?: ModelId
 	onModelChange?: (model: ModelId) => void
-	/** Compact pill matching inline send control (black + #161F2C border, rounded-full) */
+	/** Compact pill matching inline send control. */
 	minimal?: boolean
 }
 
@@ -41,22 +41,22 @@ export default function ChatModelSelector({
 		<button
 			type="button"
 			className={cn(
-				"flex max-w-[min(100%,220px)] min-w-0 shrink cursor-pointer items-center gap-1.5 rounded-full border border-[#161F2C] bg-[#000000] px-3 py-1.5 text-sm transition-colors hover:bg-[#161F2C]",
+				"flex max-w-[min(100%,220px)] min-w-0 shrink cursor-pointer items-center gap-1.5 rounded-full bg-fg-primary/5 px-3 py-1.5 text-sm transition-colors hover:bg-fg-primary/10",
 				dmSansClassName(),
 			)}
 			onClick={() => setIsOpen(!isOpen)}
 		>
-			<p className="min-w-0 truncate text-left text-[#FAFAFA]">
+			<p className="min-w-0 truncate text-left text-fg-primary">
 				{currentModelData.name}{" "}
-				<span className="text-[#525D6E]">{currentModelData.version}</span>
+				<span className="text-fg-subtle">{currentModelData.version}</span>
 			</p>
-			<ChevronDownIcon className="size-3.5 shrink-0 text-[#525D6E]" />
+			<ChevronDownIcon className="size-3.5 shrink-0 text-fg-subtle" />
 		</button>
 	) : (
 		<Button
 			variant="headers"
 			className={cn(
-				"h-10! max-w-[min(100%,220px)] shrink gap-1 rounded-full border-[#73737333] bg-[#0D121A] text-base",
+				"h-10! max-w-[min(100%,220px)] shrink gap-1 rounded-full border-[#73737333] bg-surface-base text-base",
 				dmSansClassName(),
 			)}
 			style={{
@@ -86,7 +86,7 @@ export default function ChatModelSelector({
 						aria-label="Close model selector"
 					/>
 
-					<div className="absolute bottom-full left-0 mb-2 w-64 bg-[#0D121A] backdrop-blur-xl border border-[#73737333] rounded-lg shadow-xl z-50 overflow-hidden">
+					<div className="absolute bottom-full left-0 mb-2 w-64 bg-surface-card backdrop-blur-xl border border-surface-border rounded-lg shadow-xl z-50 overflow-hidden">
 						<div className="p-2 space-y-1">
 							{models.map((model) => {
 								const modelData = modelNames[model.id]
@@ -107,11 +107,11 @@ export default function ChatModelSelector({
 									>
 										<div className="text-sm font-medium text-white">
 											{modelData.name}{" "}
-											<span className="text-[#737373]">
+											<span className="text-fg-subtle">
 												{modelData.version}
 											</span>
 										</div>
-										<div className="text-xs text-[#737373] truncate w-full">
+										<div className="text-xs text-fg-muted truncate w-full">
 											{model.description}
 										</div>
 									</button>

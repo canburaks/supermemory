@@ -294,13 +294,13 @@ function RecommendedPluginsCard({
 	return (
 		<div
 			className={cn(
-				"bg-[#050709] border border-[#0F1621] rounded-xl px-3 py-2 flex flex-col gap-1",
+				"bg-surface-card/60 backdrop-blur-md rounded-xl px-3 py-2 flex flex-col gap-1 shadow-[0_12px_40px_rgba(0,0,0,0.22)]",
 				dmSansClassName(),
 			)}
 		>
 			{showPicker ? (
 				<div className="px-1 py-2 flex flex-col gap-2.5">
-					<p className="text-[11px] text-[#737373]">
+					<p className="text-[11px] text-fg-muted">
 						{isEditing ? "Change your field:" : "What's your field?"}
 					</p>
 					<div className="flex flex-wrap gap-1.5">
@@ -315,8 +315,8 @@ function RecommendedPluginsCard({
 								className={cn(
 									"rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all cursor-pointer",
 									profession === value
-										? "border-[#3374FF]/40 bg-[#3374FF]/10 text-[#6BB0FF]"
-										: "border-[#161F2C] text-[#525D6E] hover:border-[#3374FF]/25 hover:text-[#4BA0FA]",
+										? "border-[#4BA0FA]/55 bg-[#3374FF]/15 text-[#8BC6FF]"
+										: "border-surface-border text-fg-subtle hover:border-[#4BA0FA]/40 hover:text-[#6BB0FF]",
 								)}
 							>
 								{label}
@@ -327,7 +327,7 @@ function RecommendedPluginsCard({
 						<button
 							type="button"
 							onClick={() => setIsEditing(false)}
-							className="text-[10px] text-[#3A4455] hover:text-[#525D6E] transition-colors text-left cursor-pointer"
+							className="text-[10px] text-fg-faint hover:text-fg-muted transition-colors text-left cursor-pointer"
 						>
 							Cancel
 						</button>
@@ -335,7 +335,7 @@ function RecommendedPluginsCard({
 				</div>
 			) : suggestions.length === 0 ? (
 				<div className="flex items-center justify-center py-4">
-					<p className="text-[11px] text-[#525D6E] text-center">
+					<p className="text-[11px] text-fg-subtle text-center">
 						You're all set ✓
 					</p>
 				</div>
@@ -347,18 +347,18 @@ function RecommendedPluginsCard({
 								<button
 									type="button"
 									onClick={plugin.onClick}
-									className="group w-full flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-[#0D121A] transition-colors cursor-pointer"
+									className="group w-full flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-surface-hover transition-colors cursor-pointer"
 								>
-									<plugin.Icon className="size-4 shrink-0 text-[#525D6E]" />
+									<plugin.Icon className="size-4 shrink-0 text-fg-subtle" />
 									<div className="flex-1 min-w-0 text-left">
-										<p className="text-[12px] text-[#737373] group-hover:text-white transition-colors leading-tight">
+										<p className="text-[12px] text-fg-secondary group-hover:text-white transition-colors leading-tight">
 											{plugin.name}
 										</p>
-										<p className="text-[11px] text-[#525D6E] leading-tight mt-0.5">
+										<p className="text-[11px] text-fg-subtle leading-tight mt-0.5">
 											{PLUGIN_TAGLINES[profession][plugin.id] ?? plugin.tagline}
 										</p>
 									</div>
-									<span className="shrink-0 text-[10px] font-medium text-[#3374FF] group-hover:text-[#6BB0FF] transition-colors">
+									<span className="shrink-0 text-[10px] font-medium text-[#5EA8FF] group-hover:text-[#8BC6FF] transition-colors">
 										{plugin.cta} →
 									</span>
 								</button>
@@ -368,7 +368,7 @@ function RecommendedPluginsCard({
 					<button
 						type="button"
 						onClick={() => setIsEditing(true)}
-						className="text-left px-2 pb-1 text-[10px] text-[#3A4455] hover:text-[#525D6E] transition-colors cursor-pointer"
+						className="text-left px-2 pb-1 text-[10px] text-fg-faint hover:text-fg-muted transition-colors cursor-pointer"
 					>
 						Not a{" "}
 						{PROFESSION_LABELS.find(
@@ -398,20 +398,20 @@ function MemoryOfDayCard({ data }: { data: MemoryOfDay }) {
 			type="button"
 			onClick={() => router.push(href)}
 			className={cn(
-				"group w-full h-full text-left bg-[#0B1017] border border-[rgba(255,255,255,0.05)] rounded-[18px] p-3 flex flex-col justify-between hover:border-[rgba(255,255,255,0.10)] transition-colors cursor-pointer",
+				"group w-full h-full text-left bg-surface-card/60 backdrop-blur-md rounded-[18px] p-3 flex flex-col justify-between transition-colors cursor-pointer shadow-[0_12px_40px_rgba(0,0,0,0.22)]",
 				dmSansClassName(),
 			)}
 		>
 			<div className="flex flex-col gap-2.5">
-				<span className="self-start text-[9px] font-semibold tracking-[0.12em] uppercase text-[#4BA0FA] bg-[#4BA0FA]/10 rounded-full px-2 py-0.5">
+				<span className="self-start text-[9px] font-semibold tracking-[0.12em] uppercase text-[#8BC6FF] bg-[#4BA0FA]/16 rounded-full px-2 py-0.5">
 					{data.timeLabel}
 				</span>
-				<p className="text-[12px] text-[#8B9DB5] leading-relaxed line-clamp-4">
+				<p className="text-[12px] text-fg-secondary leading-relaxed line-clamp-4">
 					{memory}
 				</p>
 			</div>
 
-			<span className="text-[10px] text-[#2A3A50] group-hover:text-[#4A6A80] transition-colors">
+			<span className="text-[10px] text-fg-faint group-hover:text-fg-muted transition-colors">
 				View memories →
 			</span>
 		</button>
@@ -475,7 +475,7 @@ function PluginPromoCard({
 	return (
 		<div
 			className={cn(
-				"bg-[#0B1017] border border-[rgba(255,255,255,0.05)] rounded-[18px] p-3 flex flex-col justify-between gap-3 h-full",
+				"bg-surface-card/60 backdrop-blur-md rounded-[18px] p-3 flex flex-col justify-between gap-3 h-full shadow-[0_12px_40px_rgba(0,0,0,0.22)]",
 				dmSansClassName(),
 			)}
 		>
@@ -511,10 +511,10 @@ function PluginPromoCard({
 								)}
 							</div>
 							<div className="flex flex-col gap-1">
-								<p className="text-[11px] font-semibold text-[#FAFAFA] leading-tight">
+								<p className="text-[11px] font-semibold text-fg-primary leading-tight">
 									{plugin.name}
 								</p>
-								<p className="text-[10px] text-[#525D6E] leading-normal">
+								<p className="text-[10px] text-fg-muted leading-normal">
 									{plugin.tagline}
 								</p>
 							</div>
@@ -524,7 +524,7 @@ function PluginPromoCard({
 					<button
 						type="button"
 						onClick={plugin.onClick}
-						className="w-full bg-[#0D121A] rounded-lg px-3 py-1.5 text-[11px] font-medium text-[#4BA0FA] hover:text-white hover:bg-[#141C28] transition-colors cursor-pointer text-left flex items-center justify-between group"
+						className="w-full bg-surface-card border border-surface-border rounded-lg px-3 py-1.5 text-[11px] font-medium text-[#6BB0FF] hover:text-white hover:bg-surface-hover transition-colors cursor-pointer text-left flex items-center justify-between group"
 						style={{ boxShadow: "inset 1px 1px 2px rgba(0,0,0,0.5)" }}
 					>
 						<span>{plugin.cta}</span>
@@ -533,8 +533,8 @@ function PluginPromoCard({
 				</>
 			) : (
 				<div className="flex flex-col items-center justify-center h-full gap-1.5 text-center">
-					<Terminal className="size-4 text-[#3A4455]" />
-					<p className="text-[10px] text-[#3A4455]">
+					<Terminal className="size-4 text-fg-faint" />
+					<p className="text-[10px] text-fg-subtle">
 						All integrations connected
 					</p>
 				</div>
@@ -654,10 +654,10 @@ export function DashboardView({
 				<motion.header
 					{...fadeUp}
 					transition={{ ...fadeUp.transition, delay: 0 }}
-					className="flex items-end justify-between gap-4 border-b border-[#0F1621] pb-4"
+					className="flex items-end justify-between gap-4 border-b border-surface-border pb-4"
 				>
 					<div className="space-y-0.5">
-						<p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#3A4455]">
+						<p className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg-faint">
 							Home
 						</p>
 						<h1 className="text-xl font-medium tracking-tight text-white md:text-2xl">
@@ -670,7 +670,7 @@ export function DashboardView({
 								<button
 									type="button"
 									onClick={onNavigateToGraph}
-									className="group relative shrink-0 w-[140px] h-[56px] rounded-xl overflow-hidden border border-[rgba(255,255,255,0.05)] hover:border-[rgba(255,255,255,0.14)] transition-all bg-[#0B1017] hover:scale-[1.02]"
+									className="group relative shrink-0 w-[140px] h-[56px] rounded-xl overflow-hidden border border-surface-border hover:border-[#3A4A63] transition-all bg-surface-card hover:scale-[1.02]"
 									aria-label="Open graph view"
 								>
 									<StaticGraphPreview
@@ -696,7 +696,7 @@ export function DashboardView({
 					className="space-y-2"
 				>
 					<div className="flex items-center gap-1.5">
-						<p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#3A4455]">
+						<p className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg-faint">
 							Daily brief
 						</p>
 						<Tooltip>
@@ -704,7 +704,7 @@ export function DashboardView({
 								<button
 									type="button"
 									onClick={onResetHighlights}
-									className="text-[#2A3040] hover:text-[#5A6478] transition-colors cursor-pointer"
+									className="text-fg-faint hover:text-fg-muted transition-colors cursor-pointer"
 									aria-label="Refresh daily brief"
 								>
 									<RotateCcw className="size-3" />
@@ -750,28 +750,28 @@ export function DashboardView({
 						<button
 							type="button"
 							onClick={() => onAddMemory("link")}
-							className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-[#5A6478] hover:bg-[#0D121A] hover:text-white transition-colors cursor-pointer"
+							className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-fg-subtle hover:bg-surface-hover hover:text-white transition-colors cursor-pointer"
 						>
 							<Link2 className="size-3.5 shrink-0" />
 							{personalizedCopy.saveLink}
 						</button>
-						<span className="text-[#1A2030] select-none">·</span>
+						<span className="text-[#3A4455] select-none">·</span>
 						<button
 							type="button"
 							onClick={() => onAddMemory("note")}
-							className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-[#5A6478] hover:bg-[#0D121A] hover:text-white transition-colors cursor-pointer"
+							className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-fg-subtle hover:bg-surface-hover hover:text-white transition-colors cursor-pointer"
 						>
 							<FileText className="size-3.5 shrink-0" />
 							{personalizedCopy.writeNote}
 						</button>
-						<span className="text-[#1A2030] select-none">·</span>
+						<span className="text-[#3A4455] select-none">·</span>
 						<button
 							type="button"
 							onClick={() => {
 								analytics.searchOpened({ source: "header" })
 								onOpenSearch()
 							}}
-							className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-[#5A6478] hover:bg-[#0D121A] hover:text-white transition-colors cursor-pointer"
+							className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-fg-subtle hover:bg-surface-hover hover:text-white transition-colors cursor-pointer"
 						>
 							<SearchIcon className="size-3.5 shrink-0" />
 							Search
@@ -779,7 +779,7 @@ export function DashboardView({
 					</div>
 
 					{/* Tip of the day */}
-					<p className="hidden sm:flex items-center gap-1.5 text-[11px] text-[#525D6E] min-w-0 overflow-hidden">
+					<p className="hidden sm:flex items-center gap-1.5 text-[11px] text-fg-subtle min-w-0 overflow-hidden">
 						<Lightbulb className="size-3 shrink-0 text-[#3374FF]" />
 						<span className="truncate">{tip}</span>
 					</p>
@@ -796,12 +796,12 @@ export function DashboardView({
 							{/* Shared header row — both labels aligned */}
 							<div className="flex gap-4">
 								<div className="flex-[3] min-w-0">
-									<p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#3A4455]">
+									<p className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg-faint">
 										Recently saved
 									</p>
 								</div>
 								<div className="flex-[2] min-w-0 hidden sm:block">
-									<p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#3A4455]">
+									<p className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg-faint">
 										Suggested for you
 									</p>
 								</div>
@@ -817,19 +817,19 @@ export function DashboardView({
 												<button
 													type="button"
 													onClick={() => onOpenDocument(doc)}
-													className="group flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[#0D121A]"
+													className="group flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-surface-hover"
 												>
-													<div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#0D121A] group-hover:bg-[#131B28] transition-colors">
+													<div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-surface-card ring-1 ring-surface-border group-hover:bg-[#182333] transition-colors">
 														{isLink ? (
-															<ExternalLink className="size-3 text-[#3A4455]" />
+															<ExternalLink className="size-3 text-fg-subtle" />
 														) : (
-															<FileText className="size-3 text-[#3A4455]" />
+															<FileText className="size-3 text-fg-subtle" />
 														)}
 													</div>
-													<span className="min-w-0 flex-1 truncate text-sm text-[#737373] group-hover:text-white transition-colors">
+													<span className="min-w-0 flex-1 truncate text-sm text-fg-muted group-hover:text-white transition-colors">
 														{doc.title?.trim() || "Untitled"}
 													</span>
-													<ArrowRight className="size-3.5 shrink-0 text-[#1E2736] group-hover:text-[#3A4455] transition-colors" />
+													<ArrowRight className="size-3.5 shrink-0 text-fg-faint group-hover:text-fg-muted transition-colors" />
 												</button>
 											</li>
 										)
@@ -851,7 +851,7 @@ export function DashboardView({
 					) : (
 						/* No recents yet — show suggestions full-width */
 						<>
-							<p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#3A4455]">
+							<p className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg-faint">
 								Suggested for you
 							</p>
 							<div className="max-w-sm">

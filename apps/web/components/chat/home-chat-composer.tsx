@@ -64,12 +64,12 @@ export function HomeChatComposer({
 							/>
 							<div
 								className={cn(
-									"inline-flex max-w-[min(160px,35vw)] min-w-0 shrink items-center rounded-full border border-[#161F2C] bg-[#000000] px-3 py-1.5",
+									"inline-flex max-w-[min(160px,35vw)] min-w-0 shrink items-center rounded-full bg-fg-primary/5 px-3 py-1.5",
 									dmSansClassName(),
 								)}
 								title={chatSpaceLabel}
 							>
-								<span className="truncate text-sm text-[#FAFAFA]">
+								<span className="truncate text-sm text-fg-primary">
 									{chatSpaceLabel}
 								</span>
 							</div>

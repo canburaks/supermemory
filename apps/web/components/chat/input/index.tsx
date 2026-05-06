@@ -122,14 +122,14 @@ export default function ChatInput({
 				</>
 			) : null}
 			{stackedToolbar ? (
-				<div className="flex flex-col gap-2 rounded-xl border border-[#52596633] bg-[#070E1B] p-2 transition-all duration-200 focus-within:outline-1 focus-within:outline-[#525D6EB2]">
+				<div className="flex flex-col gap-2 rounded-xl bg-surface-card/60 backdrop-blur-md p-2 shadow-[0_16px_48px_rgba(0,0,0,0.34)] transition-all duration-200 focus-within:ring-1 focus-within:ring-fg-primary/10">
 					<textarea
 						ref={textareaRef}
 						value={value}
 						onChange={handleChange}
 						onKeyDown={onKeyDown}
 						placeholder="Ask your supermemory..."
-						className="w-full resize-none overflow-y-auto bg-transparent p-2 transition-all duration-200 placeholder:text-[#525D6E] focus:outline-none"
+						className="w-full resize-none overflow-y-auto bg-transparent p-2 text-fg-primary transition-all duration-200 placeholder:text-fg-faint focus:outline-none"
 						style={{ minHeight: "36px" }}
 						rows={1}
 						disabled={isResponding}
@@ -150,7 +150,7 @@ export default function ChatInput({
 			) : (
 				<div
 					className={cn(
-						"flex items-end gap-2 rounded-xl border border-[#52596633] bg-[#070E1B] p-2 transition-all duration-200 focus-within:outline-1 focus-within:outline-[#525D6EB2]",
+						"flex items-end gap-2 rounded-xl bg-surface-card/60 backdrop-blur-md p-2 shadow-[0_16px_48px_rgba(0,0,0,0.34)] transition-all duration-200 focus-within:ring-1 focus-within:ring-fg-primary/10",
 						isMultiline && "flex-col",
 					)}
 				>
@@ -160,7 +160,7 @@ export default function ChatInput({
 						onChange={handleChange}
 						onKeyDown={onKeyDown}
 						placeholder="Ask your supermemory..."
-						className="w-full resize-none overflow-y-auto bg-transparent p-2 transition-all duration-200 placeholder:text-[#525D6E] focus:outline-none"
+						className="w-full resize-none overflow-y-auto bg-transparent p-2 text-fg-primary transition-all duration-200 placeholder:text-fg-faint focus:outline-none"
 						style={{ minHeight: "36px" }}
 						rows={1}
 						disabled={isResponding}

@@ -56,6 +56,7 @@ import {
 	qParam,
 	docParam,
 	fullscreenParam,
+	threadParam,
 	type IntegrationParamValue,
 } from "@/lib/search-params"
 import { getChatSpaceDisplayLabel } from "@/lib/chat-space-label"
@@ -152,6 +153,7 @@ export default function NewPage() {
 		"fullscreen",
 		fullscreenParam,
 	)
+	const [, setThreadIdUrl] = useQueryState("thread", threadParam)
 
 	// Ephemeral local state (not worth URL-encoding)
 	const [fullscreenInitialContent, setFullscreenInitialContent] = useState("")
@@ -167,6 +169,10 @@ export default function NewPage() {
 	useEffect(() => {
 		if (!docId) setSelectedDocument(null)
 	}, [docId])
+
+	useEffect(() => {
+		if (viewMode === "dashboard") void setThreadIdUrl(null)
+	}, [viewMode, setThreadIdUrl])
 
 	// Resolve document from cache when loading with ?doc=<id> (deep link / refresh)
 	useEffect(() => {
@@ -512,7 +518,7 @@ export default function NewPage() {
 	const isGraphMode = viewMode === "graph" && !isMobile
 	const isMemoriesDesktop = viewMode === "list" && !isMobile
 	const isHomeDesktop = viewMode === "dashboard" && !isMobile
-	const showNovaBackdrop = isGraphMode || isMemoriesDesktop
+	const showNovaBackdrop = isGraphMode || isMemoriesDesktop || isHomeDesktop
 	const isDashboardShell =
 		viewMode === "dashboard" || (viewMode === "graph" && isMobile)
 
@@ -520,31 +526,23 @@ export default function NewPage() {
 		<HotkeysProvider>
 			<div
 				className={cn(
-					"relative flex min-h-dvh flex-col bg-black",
+					"relative flex min-h-dvh flex-col bg-[#05080D]",
 					isGraphMode && "h-dvh overflow-hidden",
 				)}
 			>
 				{showNovaBackdrop && (
 					<>
 						<AnimatedGradientBackground
-							animateFromBottom={isHomeDesktop}
+							animateFromBottom={false}
 							topPosition={gradientTopPosition}
 						/>
 						<div
-							className={cn(
-								"pointer-events-none absolute inset-0 z-0",
-								isHomeDesktop
-									? "bg-[linear-gradient(to_top,rgb(0_0_0/0.88)_0%,rgb(0_0_0/0.52)_38%,rgb(0_0_0/0.42)_100%)]"
-									: "bg-black/50",
-							)}
+							className="pointer-events-none absolute inset-0 z-0 bg-[#05080D]/50"
 							aria-hidden
 						/>
 						<div
 							id="graph-dotted-grid"
-							className={cn(
-								"pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(circle_at_center,rgba(105,167,240,0.25)_1px,transparent_1px)] bg-size-[32px_32px] mask-[radial-gradient(ellipse_at_center,black_60%,transparent_100%)]",
-								isHomeDesktop && "opacity-70",
-							)}
+							className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(circle_at_center,rgba(105,167,240,0.25)_1px,transparent_1px)] bg-size-[32px_32px] mask-[radial-gradient(ellipse_at_center,black_60%,transparent_100%)]"
 						/>
 					</>
 				)}
@@ -716,7 +714,7 @@ export default function NewPage() {
 				{isDashboardShell && (
 					<div
 						className={cn(
-							"pointer-events-none fixed inset-x-0 z-30 bg-gradient-to-t from-black via-black/80 to-transparent pt-12",
+							"pointer-events-none fixed inset-x-0 z-30 bg-gradient-to-t from-black via-black/40 to-transparent pt-12",
 							isMobile ? "bottom-[4.5rem]" : "bottom-0",
 						)}
 					>
