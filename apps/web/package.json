@@ -2,8 +2,10 @@
   "name": "@repo/web",
   "version": "0.1.0",
   "private": true,
+  "portless": { "name": "app.dev.supermemory", "script": "dev:app" },
   "scripts": {
-    "dev": "next dev",
+    "dev": "portless",
+    "dev:app": "next dev --port ${PORT:-3000}",
     "build": "next build",
     "start": "next start",
     "lint": "biome check --write",
