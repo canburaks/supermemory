@@ -123,48 +123,104 @@ const TIPS: Record<Profession, string[]> = {
 		"Connect Claude MCP to query your saved knowledge from any IDE",
 		"Save GitHub repos and READMEs — ask questions across all of them",
 		"Use 'Related' on highlights to find connected technical concepts",
+		"Save a Stack Overflow answer once — find it again by what it does",
+		"Drop in your last 3 PRs and ask Supermemory for the review patterns",
+		"Save your team's RFCs and surface the ones touching your work",
+		"Save error messages with their fixes — search by symptom next time",
+		"Save framework docs once — semantic search beats Cmd+F across pages",
+		"Connect Notion to make your engineering specs instantly findable",
+		"Save the docs for libraries you keep forgetting and grep them by intent",
+		"Use Daily Brief to resurface the design doc you skimmed last week",
+		"Save changelogs as you skim — pull breaking changes back later",
+		"Save a debugging session as a note — find it again by the symptom",
 	],
 	research: [
 		"Save papers and ask questions across your entire reading list",
 		"Use 'Related' on highlights to surface connected research",
 		"Connect Notion to index your notes alongside your papers",
 		"Semantic search means you can ask questions, not just search titles",
+		"Save a paper once — Supermemory finds it later by what it argued",
+		"Drop in 5 papers on a topic and ask for the consensus and disagreements",
+		"Save citations as you read — pull them back out by claim",
+		"Connect Google Drive to make your dataset notes searchable",
+		"Use Daily Brief to resurface a finding you almost forgot",
+		"Save a methodology note once — find it next time you need that protocol",
+		"Save preprints alongside your reading list — ask what's new since last week",
+		"Save quotes with their source — find them later by the idea",
 	],
 	finance: [
 		"Save articles and ask follow-up questions across your research",
 		"Connect Notion to keep your investment thesis searchable",
 		"Use ⌘K to find specific data points across all your saves",
 		"Daily Brief surfaces connections you may have missed",
+		"Save earnings call transcripts once — pull guidance back by ticker or theme",
+		"Save a thesis once — find it months later by the conviction, not the filename",
+		"Drop in three sell-side reports and ask for the disagreements",
+		"Save market commentary daily — surface the calls that aged well",
+		"Connect Google Drive to query your models without opening them",
+		"Save a chart with a note — find it again by what it showed",
+		"Save analyst takes — pull them back when the thesis matters again",
 	],
 	design: [
 		"Save inspiration and search by concept — 'minimalist UI' finds the right ones",
 		"Use ⌘K to rediscover references by meaning, not filename",
 		"Connect Notion to make your briefs and moodboards searchable",
 		"Chrome extension saves any page in one click while you browse",
+		"Save a screenshot with a note — find it later by what it taught you",
+		"Drop in 10 onboarding flows and ask Supermemory for the common patterns",
+		"Save your design crits — find the feedback on a specific decision later",
+		"Save a brand guideline once — search it by intent, not page number",
+		"Connect Google Drive to index your Figma exports and briefs",
+		"Use Daily Brief to resurface a reference that fits today's work",
+		"Save references by mood — pull them back when the brief calls for it",
 	],
 	legal: [
 		"Save documents and search across them semantically in seconds",
 		"Connect Notion to index your memos and case notes together",
 		"Use Daily Brief to resurface relevant precedents automatically",
 		"Google Drive sync keeps your contracts indexed and queryable",
+		"Save a clause once — find it next time by what it does, not where it lives",
+		"Save case law as you read — pull precedents back by argument",
+		"Drop in three contracts and ask for the diffs in indemnity language",
+		"Save regulator updates — surface the ones touching your matter",
+		"Save a memo once — search by issue, not by file name",
+		"Save deposition notes — find specific testimony by claim later",
 	],
 	marketing: [
 		"Save campaigns and resources — ask what worked across all of them",
 		"Chrome extension captures competitor pages in one click",
 		"Use 'Related' to find similar campaigns in your archive",
 		"Connect Notion to make your campaign briefs instantly searchable",
+		"Save a competitor's landing page — surface their positioning later by claim",
+		"Drop in five launch retros and ask for the patterns that drove growth",
+		"Save ad references and find them by mood, not by URL",
+		"Save your weekly metrics notes — pull trends back by quarter",
+		"Use Daily Brief to resurface a positioning note from last campaign",
+		"Save creative briefs — find similar ones when starting a new one",
 	],
 	medical: [
 		"Save studies and query across your entire reading list",
 		"Connect Notion to keep clinical notes alongside research",
 		"Use ⌘K to find specific findings across hundreds of papers",
 		"Daily Brief surfaces relevant research from your saves automatically",
+		"Save a guideline once — pull it back by clinical scenario",
+		"Drop in three trials and ask Supermemory for the methodological diffs",
+		"Save case reports — surface them later by symptom or finding",
+		"Connect Google Drive to index protocols across your team",
+		"Save teaching points from rounds — find them by topic next month",
+		"Save differentials as notes — pull them back when the presentation repeats",
 	],
 	default: [
 		"Use ⌘K to search by meaning — ask questions, not just keywords",
 		"Daily Brief surfaces insights from your saves each morning",
 		"Chrome extension saves any page in one click while you browse",
 		"Connect integrations to make all your knowledge searchable here",
+		"Save a page once — find it later by what it said, not its title",
+		"Save the thing you'd normally bookmark — find it again by intent",
+		"Drop in 10 articles on a topic and ask for the through-line",
+		"Save an idea — Supermemory connects it to your earlier ones",
+		"Use Daily Brief to resurface something useful you forgot you saved",
+		"Save a thread you liked — pull it back later by what it was about",
 	],
 }
 
@@ -633,12 +689,10 @@ export function DashboardView({
 	const hasMcp = mcpData?.previousLogin ?? false
 	const connectedProviders = new Set(connections.map((c) => c.provider))
 
-	const dayOfYear = Math.round(
-		(Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) /
-			86_400_000,
-	)
-	const tips = TIPS[profession]
-	const tip = tips[dayOfYear % tips.length]
+	const tip = useMemo(() => {
+		const tips = TIPS[profession]
+		return tips[Math.floor(Math.random() * tips.length)]
+	}, [profession])
 
 	return (
 		<div
