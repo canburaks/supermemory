@@ -371,6 +371,7 @@ export default function OnboardingPage() {
 	const inputRef = useRef<HTMLInputElement>(null)
 	const fileRef = useRef<HTMLInputElement>(null)
 	const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+	const skippingRef = useRef(false)
 	const [spotlightCategory, setSpotlightCategory] =
 		useState<SpotlightCategoryId>("productivity")
 	const [pauseSpotlight, setPauseSpotlight] = useState(false)
@@ -460,6 +461,18 @@ export default function OnboardingPage() {
 		}
 		await refetchOrganizations()
 	}, [user, organizations, refetchOrganizations, setActiveOrg])
+
+	const handleSkip = useCallback(async () => {
+		if (skippingRef.current) return
+		skippingRef.current = true
+		try {
+			await ensureOrg()
+			router.push("/")
+		} catch (err) {
+			console.error(err)
+			skippingRef.current = false
+		}
+	}, [ensureOrg, router])
 
 	const pollDocument = useCallback((docId: string) => {
 		const maxAttempts = 60
@@ -620,7 +633,7 @@ export default function OnboardingPage() {
 				<Logo className="h-7" />
 				<button
 					type="button"
-					onClick={() => router.push("/")}
+					onClick={handleSkip}
 					className="text-[#525966] text-sm hover:text-white transition-colors cursor-pointer"
 				>
 					Skip for now →
@@ -1096,7 +1109,7 @@ export default function OnboardingPage() {
 								</button>
 								<button
 									type="button"
-									onClick={() => router.push("/")}
+									onClick={handleSkip}
 									className="rounded-xl px-4 py-2.5 text-sm font-medium text-white cursor-pointer border-[0.5px] border-[#161F2C]"
 									style={{
 										background:
