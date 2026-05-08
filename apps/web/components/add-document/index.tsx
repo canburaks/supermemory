@@ -16,7 +16,7 @@ import { toast } from "sonner"
 import { useDocumentMutations } from "../../hooks/use-document-mutations"
 import { useCustomer } from "autumn-js/react"
 import { useTokenUsage } from "@/hooks/use-token-usage"
-import { tokensToCredits, formatUsageNumber } from "@/lib/billing-utils"
+import { formatUsageNumber } from "@/lib/billing-utils"
 import { SpaceSelector } from "../space-selector"
 import { useIsMobile } from "@hooks/use-mobile"
 import { addDocumentParam } from "@/lib/search-params"
@@ -127,11 +127,8 @@ export function AddDocument({
 	const autumn = useCustomer()
 	const {
 		tokensUsed,
-		tokensLimit,
-		tokensPercent,
 		searchesUsed,
-		searchesLimit,
-		searchesPercent,
+		planUsagePct,
 		hasPaidPlan,
 		isLoading: isLoadingUsage,
 	} = useTokenUsage(autumn)
@@ -298,72 +295,46 @@ export function AddDocument({
 										dmSansClassName(),
 									)}
 								>
-									Credits
+									Plan usage
 								</span>
 								<span
 									className={cn(
-										"text-sm font-medium",
+										"text-sm font-medium tabular-nums",
 										hasPaidPlan ? "text-[#4BA0FA]" : "text-[#737373]",
 										dmSansClassName(),
 									)}
 								>
 									{isLoadingUsage
 										? "…"
-										: `${tokensToCredits(tokensUsed)} / ${tokensToCredits(tokensLimit)}`}
+										: `${planUsagePct < 1 && planUsagePct > 0 ? "< 1" : Math.round(planUsagePct)}% used`}
 								</span>
 							</div>
 							<div className="h-2 w-full rounded-[40px] bg-[#2E353D] p-px overflow-hidden">
 								<div
 									className="h-full rounded-[40px]"
 									style={{
-										width: `${tokensPercent}%`,
+										width: `${planUsagePct}%`,
 										background:
-											tokensPercent > 80
+											planUsagePct > 80
 												? "#ef4444"
 												: hasPaidPlan
 													? "linear-gradient(to right, #4BA0FA 80%, #002757 100%)"
 													: "#0054AD",
 									}}
+									title={`${formatUsageNumber(tokensUsed)} tokens · ${formatUsageNumber(searchesUsed)} queries`}
 								/>
 							</div>
-						</div>
-
-						<div className="flex flex-col gap-2">
-							<div className="flex justify-between items-center">
-								<span
+							{!isLoadingUsage && (
+								<p
 									className={cn(
-										"text-[#FAFAFA] text-sm font-medium",
+										"text-xs text-[#737373] tabular-nums",
 										dmSansClassName(),
 									)}
 								>
-									Search Queries
-								</span>
-								<span
-									className={cn(
-										"text-sm font-medium",
-										hasPaidPlan ? "text-[#4BA0FA]" : "text-[#737373]",
-										dmSansClassName(),
-									)}
-								>
-									{isLoadingUsage
-										? "…"
-										: `${formatUsageNumber(searchesUsed)} / ${formatUsageNumber(searchesLimit)}`}
-								</span>
-							</div>
-							<div className="h-2 w-full rounded-[40px] bg-[#2E353D] p-px overflow-hidden">
-								<div
-									className="h-full rounded-[40px]"
-									style={{
-										width: `${searchesPercent}%`,
-										background:
-											searchesPercent > 80
-												? "#ef4444"
-												: hasPaidPlan
-													? "linear-gradient(to right, #4BA0FA 80%, #002757 100%)"
-													: "#0054AD",
-									}}
-								/>
-							</div>
+									{formatUsageNumber(tokensUsed)} tokens ·{" "}
+									{formatUsageNumber(searchesUsed)} queries
+								</p>
+							)}
 						</div>
 
 						{!hasPaidPlan && (
@@ -373,7 +344,7 @@ export function AddDocument({
 									setIsUpgrading(true)
 									try {
 										await autumn.attach({
-											productId: "api_pro",
+											planId: "api_pro",
 											successUrl: "https://app.supermemory.ai/settings#account",
 										})
 										window.location.reload()
