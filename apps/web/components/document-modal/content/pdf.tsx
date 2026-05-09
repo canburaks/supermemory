@@ -55,10 +55,10 @@ export function PdfViewer({ url }: PdfViewerProps) {
 	)
 
 	return (
-		<div className="flex flex-col h-full w-full overflow-hidden scrollbar-thin">
+		<div className="flex flex-col size-full overflow-hidden scrollbar-thin">
 			{loading && (
 				<div className="flex items-center justify-center h-full text-gray-400">
-					Loading PDF...
+					Loading PDF…
 				</div>
 			)}
 			{error && (

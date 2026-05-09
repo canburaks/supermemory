@@ -129,7 +129,7 @@ export function TextEditor({
 				tabIndex={0}
 				ref={containerRef}
 				onClick={handleClick}
-				className="h-full w-full cursor-text outline-none prose prose-invert max-w-none text-editor-prose [&_.ProseMirror]:min-h-full [&_.ProseMirror]:outline-none [&_.ProseMirror]:text-[15px] [&_.ProseMirror]:leading-6 [&_.ProseMirror]:text-[#D7DEE8] [&_.ProseMirror-focused]:outline-none [&_.ProseMirror]:focus:outline-none"
+				className="size-full cursor-text outline-none prose prose-invert max-w-none text-editor-prose [&_.ProseMirror]:min-h-full [&_.ProseMirror]:outline-none [&_.ProseMirror]:text-[15px] [&_.ProseMirror]:leading-6 [&_.ProseMirror]:text-[#D7DEE8] [&_.ProseMirror-focused]:outline-none [&_.ProseMirror]:focus:outline-none"
 			>
 				<EditorContent editor={editor} />
 			</div>

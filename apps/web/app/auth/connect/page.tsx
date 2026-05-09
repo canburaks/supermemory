@@ -191,7 +191,7 @@ function AuthConnectContent() {
 			<div className={pageWrapperClass}>
 				<div className={cardClass}>
 					<div className="flex flex-col items-center gap-5">
-						<div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#1E293B] bg-[#080B0F]">
+						<div className="flex size-10 items-center justify-center rounded-lg border border-[#1E293B] bg-[#080B0F]">
 							{pluginInfo ? (
 								<Image
 									alt={pluginInfo.name}
@@ -270,7 +270,7 @@ function AuthConnectContent() {
 			<div className={pageWrapperClass}>
 				<div className={cardClass}>
 					<div className="flex flex-col items-center gap-5">
-						<div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#1E293B] bg-[#080B0F]">
+						<div className="flex size-10 items-center justify-center rounded-lg border border-[#1E293B] bg-[#080B0F]">
 							{pluginInfo ? (
 								<Image
 									alt={pluginInfo.name}
@@ -340,7 +340,7 @@ function AuthConnectContent() {
 							{isUpgrading || autumn.isLoading ? (
 								<>
 									<Loader className="size-4 animate-spin mr-2" />
-									Upgrading...
+									Upgrading…
 								</>
 							) : (
 								"Upgrade to Pro \u2014 $19/month"
@@ -418,9 +418,9 @@ function AuthConnectContent() {
 			<div className="flex flex-col items-center gap-3">
 				<div className="size-6 border-2 border-[#4BA0FA] border-t-transparent rounded-full animate-spin" />
 				<p className={dmSans125ClassName("text-sm text-[#737373]")}>
-					{status === "creating" && `Connecting ${displayName}...`}
+					{status === "creating" && `Connecting ${displayName}…`}
 					{status === "success" &&
-						`Success! Redirecting back to ${displayName}...`}
+						`Success! Redirecting back to ${displayName}…`}
 				</p>
 			</div>
 		</div>

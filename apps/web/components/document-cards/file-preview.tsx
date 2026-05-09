@@ -95,7 +95,7 @@ export const FilePreview = memo(function FilePreview({
 						key={retryKey}
 						src={document.url}
 						alt={document.title || "Image preview"}
-						className="relative max-w-full max-h-full w-auto h-auto object-contain z-10"
+						className="relative max-w-full max-h-full size-auto object-contain z-10"
 						onError={handleImageError}
 						loading="lazy"
 					/>
@@ -106,7 +106,7 @@ export const FilePreview = memo(function FilePreview({
 						<DocumentIcon
 							type={document.type}
 							url={document.url}
-							className="w-4 h-4"
+							className="size-4"
 						/>
 						<p
 							className={cn(dmSansClassName(), "text-[11px] font-semibold")}

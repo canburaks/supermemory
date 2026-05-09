@@ -69,12 +69,12 @@ function ChatEmptyStatePlaceholder({
 			id="chat-empty-state"
 			className="flex flex-col items-center justify-center h-full"
 		>
-			<div className="relative w-32 h-32">
-				<GradientLogo className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16" />
-				<LogoBgGradient className="w-full h-full" />
+			<div className="relative size-32">
+				<GradientLogo className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-16" />
+				<LogoBgGradient className="size-full" />
 			</div>
 			<div className="gap-3 flex flex-col items-center justify-center">
-				<p>Ask me anything about your memories...</p>
+				<p>Ask me anything about your memories…</p>
 				<div
 					className={cn(
 						dmSansClassName(),
@@ -622,7 +622,7 @@ export function ChatSidebar({
 					<div className="py-4">
 						{isLoadingThreads ? (
 							<div className="flex items-center justify-center py-8">
-								<SuperLoader label="Loading..." />
+								<SuperLoader label="Loading…" />
 							</div>
 						) : threads.length === 0 ? (
 							<div className="py-8 text-center text-sm text-[#737373]">
@@ -659,7 +659,7 @@ export function ChatSidebar({
 															e.stopPropagation()
 															deleteThread(thread.id)
 														}}
-														className="h-7 w-7 bg-red-500 text-white hover:bg-red-600"
+														className="size-7 bg-red-500 text-white hover:bg-red-600"
 													>
 														<Check className="size-3" />
 													</Button>
@@ -671,7 +671,7 @@ export function ChatSidebar({
 															e.stopPropagation()
 															setConfirmingDeleteId(null)
 														}}
-														className="h-7 w-7"
+														className="size-7"
 													>
 														<XIcon className="size-3 text-[#737373]" />
 													</Button>
@@ -685,7 +685,7 @@ export function ChatSidebar({
 														e.stopPropagation()
 														setConfirmingDeleteId(thread.id)
 													}}
-													className="ml-2 h-7 w-7"
+													className="ml-2 size-7"
 												>
 													<Trash2 className="size-3 text-[#737373]" />
 												</Button>
@@ -883,7 +883,7 @@ export function ChatSidebar({
 					))}
 					{(status === "submitted" || status === "streaming") && (
 						<div className="flex gap-2">
-							<SuperLoader label="Thinking..." />
+							<SuperLoader label="Thinking…" />
 						</div>
 					)}
 				</div>
@@ -965,10 +965,10 @@ export function ChatSidebar({
 					isResponding={status === "submitted" || status === "streaming"}
 					activeStatus={
 						status === "submitted"
-							? "Thinking..."
+							? "Thinking…"
 							: status === "streaming"
-								? "Structuring response..."
-								: "Waiting for input..."
+								? "Structuring response…"
+								: "Waiting for input…"
 					}
 					onExpandedChange={setIsInputExpanded}
 					chainOfThoughtComponent={

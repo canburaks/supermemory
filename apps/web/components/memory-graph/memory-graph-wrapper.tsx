@@ -59,7 +59,7 @@ export function MemoryGraph({
 	})
 
 	return (
-		<div ref={containerRef} className="w-full h-full [&>div]:!bg-none">
+		<div ref={containerRef} className="size-full [&>div]:!bg-none">
 			<MemoryGraphBase
 				documents={documents}
 				isLoading={externalIsLoading || apiIsLoading}

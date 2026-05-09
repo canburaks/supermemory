@@ -618,7 +618,7 @@ export default function Account() {
 									{isUpgrading || isCheckingStatus || autumn.isLoading ? (
 										<>
 											<LoaderIcon className="size-4 animate-spin mr-2" />
-											Upgrading...
+											Upgrading…
 										</>
 									) : (
 										"Upgrade to Pro - $19/month"
