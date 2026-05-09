@@ -54,6 +54,8 @@ export function useTokenUsage(autumn: ReturnType<typeof useCustomer>) {
 	return {
 		tokensUsed,
 		searchesUsed,
+		usdIncluded,
+		usdSpent,
 		planUsagePct,
 		currentPlan,
 		hasPaidPlan,

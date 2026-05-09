@@ -495,13 +495,18 @@ export function PluginsDetail() {
 
 	const handleUpgrade = async () => {
 		try {
-			await autumn.attach({
+			const result = await autumn.attach({
 				planId: "api_pro",
-				successUrl: "https://app.supermemory.ai/?view=integrations",
+				successUrl: `${window.location.origin}/?view=integrations`,
 			})
-			window.location.reload()
+			if (result?.paymentUrl) {
+				window.open(result.paymentUrl, "_self")
+				return
+			}
+			autumn.refetch?.()
 		} catch (error) {
 			console.error(error)
+			toast.error("Failed to start checkout. Please try again.")
 		}
 	}
 

@@ -9,7 +9,6 @@ import {
 } from "@/hooks/use-account-settings"
 import { Avatar, AvatarFallback, AvatarImage } from "@ui/components/avatar"
 import { useTokenUsage } from "@/hooks/use-token-usage"
-import { formatUsageNumber } from "@/lib/billing-utils"
 import {
 	Dialog,
 	DialogContent,
@@ -57,36 +56,123 @@ function SettingsCard({ children }: { children: React.ReactNode }) {
 	)
 }
 
-function PlanFeatureRow({
-	icon,
-	text,
-	variant = "muted",
+function PlanComparisonCard({
+	name,
+	price,
+	period,
+	description,
+	credits,
+	features,
+	highlight,
 }: {
-	icon: "check" | "x"
-	text: string
-	variant?: "muted" | "highlight"
+	name: string
+	price: string
+	period: string
+	description: string
+	credits: string
+	features: string[]
+	highlight: boolean
 }) {
 	return (
-		<div className="flex items-center gap-2">
-			{icon === "check" ? (
-				<Check
-					className={cn(
-						"size-4 shrink-0",
-						variant === "highlight" ? "text-[#4BA0FA]" : "text-[#737373]",
-					)}
-				/>
-			) : (
-				<X className="size-4 shrink-0 text-[#737373]" />
+		<div
+			className={cn(
+				"relative flex flex-col gap-3 p-4 rounded-[10px] overflow-hidden",
+				highlight
+					? "bg-[#1B1F24] border border-[#4BA0FA]/30 shadow-[0px_2.842px_14.211px_rgba(0,0,0,0.25)]"
+					: "border border-white/10",
 			)}
-			<span
+		>
+			<div className="flex items-center justify-between">
+				<p
+					className={cn(
+						dmSans125ClassName(),
+						"font-mono uppercase tracking-[0.12em] text-[10px]",
+						highlight ? "text-[#4BA0FA]" : "text-[#737373]",
+					)}
+				>
+					{name}
+				</p>
+				{highlight && (
+					<span className="bg-[#4BA0FA] text-[#00171A] text-[10px] font-bold tracking-[0.36px] px-1.5 py-0.5 rounded-[3px]">
+						RECOMMENDED
+					</span>
+				)}
+			</div>
+
+			<div className="flex items-baseline gap-1">
+				<span
+					className={cn(
+						dmSans125ClassName(),
+						"font-bold text-[28px] leading-none text-[#FAFAFA] tabular-nums",
+					)}
+				>
+					{price}
+				</span>
+				{period && (
+					<span
+						className={cn(dmSans125ClassName(), "text-[12px] text-[#737373]")}
+					>
+						{period}
+					</span>
+				)}
+			</div>
+
+			<p
 				className={cn(
 					dmSans125ClassName(),
-					"text-[14px] tracking-[-0.14px]",
-					variant === "highlight" ? "text-white" : "text-[#737373]",
+					"text-[12px] tracking-[-0.12px] text-[#A3A3A3] leading-snug",
 				)}
 			>
-				{text}
-			</span>
+				{description}
+			</p>
+
+			<div
+				className={cn(
+					"flex items-center gap-2 rounded-lg px-3 py-2",
+					highlight ? "bg-[#4BA0FA]/10" : "bg-white/5",
+				)}
+			>
+				<div className="min-w-0">
+					<p
+						className={cn(
+							dmSans125ClassName(),
+							"font-semibold text-[12px] tabular-nums leading-none",
+							highlight ? "text-[#4BA0FA]" : "text-[#A3A3A3]",
+						)}
+					>
+						{credits}
+					</p>
+					<p
+						className={cn(
+							dmSans125ClassName(),
+							"mt-1 text-[10px] leading-none",
+							highlight ? "text-[#4BA0FA]/70" : "text-[#737373]",
+						)}
+					>
+						of usage included
+					</p>
+				</div>
+			</div>
+
+			<ul className="flex flex-col gap-2">
+				{features.map((text) => (
+					<li
+						key={text}
+						className={cn(
+							dmSans125ClassName(),
+							"flex items-start gap-2 text-[12px] tracking-[-0.12px] leading-snug text-[#A3A3A3]",
+						)}
+					>
+						<Check
+							className={cn(
+								"mt-0.5 size-3 shrink-0",
+								highlight ? "text-[#4BA0FA]" : "text-[#737373]",
+							)}
+						/>
+						<span>{text}</span>
+					</li>
+				))}
+			</ul>
 		</div>
 	)
 }
@@ -152,14 +238,20 @@ export default function Account() {
 	}
 
 	const {
-		tokensUsed,
-		searchesUsed,
+		usdIncluded,
+		usdSpent,
 		planUsagePct,
 		currentPlan,
 		hasPaidPlan,
 		isLoading: isCheckingStatus,
 		daysRemaining,
 	} = useTokenUsage(autumn)
+
+	const formatUsd = (n: number) =>
+		n.toLocaleString(undefined, {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+		})
 
 	const planDisplayNames: Record<string, string> = {
 		free: "Free",
@@ -172,13 +264,19 @@ export default function Account() {
 	const handleUpgrade = async () => {
 		setIsUpgrading(true)
 		try {
-			await autumn.attach({
+			const result = await autumn.attach({
 				planId: "api_pro",
-				successUrl: "https://app.supermemory.ai/settings#account",
+				successUrl: `${window.location.origin}/settings#account`,
 			})
-			window.location.reload()
+			if (result?.paymentUrl) {
+				window.open(result.paymentUrl, "_self")
+				return
+			}
+			autumn.refetch?.()
 		} catch (error) {
 			console.error(error)
+			toast.error("Failed to start checkout. Please try again.")
+		} finally {
 			setIsUpgrading(false)
 		}
 	}
@@ -418,7 +516,7 @@ export default function Account() {
 														? "#ef4444"
 														: "linear-gradient(to right, #4BA0FA 80%, #002757 100%)",
 											}}
-											title={`${formatUsageNumber(tokensUsed)} tokens · ${formatUsageNumber(searchesUsed)} queries`}
+											title={`$${formatUsd(usdSpent)} of $${formatUsd(usdIncluded)} used`}
 										/>
 									</div>
 									<p
@@ -427,14 +525,9 @@ export default function Account() {
 											"text-sm tracking-[-0.14px] text-[#737373] tabular-nums",
 										)}
 									>
-										{formatUsageNumber(tokensUsed)} tokens ·{" "}
-										{formatUsageNumber(searchesUsed)} queries
-										{daysRemaining !== null && (
-											<>
-												{" · resets in "}
-												{daysRemaining} day{daysRemaining !== 1 ? "s" : ""}
-											</>
-										)}
+										{daysRemaining !== null
+											? `Resets in ${daysRemaining} day${daysRemaining !== 1 ? "s" : ""}`
+											: ""}
 									</p>
 								</div>
 
@@ -457,73 +550,6 @@ export default function Account() {
 									Manage billing
 									<div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_1.5px_1.5px_4.5px_rgba(0,0,0,0.7)]" />
 								</button>
-
-								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-									{/* Free plan card */}
-									<div className="flex flex-col gap-4 p-4 rounded-[10px] border border-white/10 overflow-hidden">
-										<p
-											className={cn(
-												dmSans125ClassName(),
-												"font-medium text-[16px] tracking-[-0.16px] text-[#FAFAFA]",
-											)}
-										>
-											Free plan
-										</p>
-										<div className="flex flex-col gap-2">
-											<PlanFeatureRow icon="check" text="1M tokens / month" />
-											<PlanFeatureRow icon="check" text="10K search queries" />
-											<PlanFeatureRow icon="x" text="No connections" />
-											<PlanFeatureRow icon="check" text="Basic support" />
-										</div>
-									</div>
-
-									{/* Current plan card - highlighted */}
-									<div
-										className={cn(
-											"flex flex-col gap-4 p-4 rounded-[10px]",
-											"bg-[#1B1F24]",
-											"shadow-[0px_2.842px_14.211px_rgba(0,0,0,0.25)]",
-											"relative overflow-hidden",
-										)}
-									>
-										<div className="flex items-center justify-between">
-											<p
-												className={cn(
-													dmSans125ClassName(),
-													"font-medium text-[16px] tracking-[-0.16px] text-[#FAFAFA]",
-												)}
-											>
-												{planDisplayNames[currentPlan]} plan
-											</p>
-											<span className="bg-[#4BA0FA] text-[#00171A] text-[12px] font-bold tracking-[0.36px] px-1 py-[3px] rounded-[3px] h-[18px] flex items-center justify-center">
-												ACTIVE
-											</span>
-										</div>
-										<div className="flex flex-col gap-2">
-											<PlanFeatureRow
-												icon="check"
-												text="3M tokens / month"
-												variant="highlight"
-											/>
-											<PlanFeatureRow
-												icon="check"
-												text="100K search queries"
-												variant="highlight"
-											/>
-											<PlanFeatureRow
-												icon="check"
-												text="10 connections"
-												variant="highlight"
-											/>
-											<PlanFeatureRow
-												icon="check"
-												text="Priority support"
-												variant="highlight"
-											/>
-										</div>
-										<div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0.711px_0.711px_0.711px_rgba(255,255,255,0.1)]" />
-									</div>
-								</div>
 							</>
 						) : (
 							<>
@@ -576,7 +602,7 @@ export default function Account() {
 												width: `${planUsagePct}%`,
 												background: planUsagePct > 80 ? "#ef4444" : "#0054AD",
 											}}
-											title={`${formatUsageNumber(tokensUsed)} tokens · ${formatUsageNumber(searchesUsed)} queries`}
+											title={`$${formatUsd(usdSpent)} of $${formatUsd(usdIncluded)} used`}
 										/>
 									</div>
 									<p
@@ -585,14 +611,9 @@ export default function Account() {
 											"text-sm tracking-[-0.14px] text-[#737373] tabular-nums",
 										)}
 									>
-										{formatUsageNumber(tokensUsed)} tokens ·{" "}
-										{formatUsageNumber(searchesUsed)} queries
-										{daysRemaining !== null && (
-											<>
-												{" · resets in "}
-												{daysRemaining} day{daysRemaining !== 1 ? "s" : ""}
-											</>
-										)}
+										{daysRemaining !== null
+											? `Resets in ${daysRemaining} day${daysRemaining !== 1 ? "s" : ""}`
+											: ""}
 									</p>
 								</div>
 
@@ -628,72 +649,32 @@ export default function Account() {
 								</button>
 
 								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-									{/* Free plan card */}
-									<div className="flex flex-col gap-4 p-4 rounded-[10px] border border-white/10">
-										<p
-											className={cn(
-												dmSans125ClassName(),
-												"font-medium text-[16px] tracking-[-0.16px] text-[#FAFAFA]",
-											)}
-										>
-											Free plan
-										</p>
-										<div className="flex flex-col gap-2">
-											<PlanFeatureRow icon="check" text="1M tokens / month" />
-											<PlanFeatureRow icon="check" text="10K search queries" />
-											<PlanFeatureRow icon="x" text="No connections" />
-											<PlanFeatureRow icon="check" text="Basic support" />
-										</div>
-									</div>
-
-									{/* Pro plan card */}
-									<div
-										className={cn(
-											"flex flex-col gap-4 p-4 rounded-[10px]",
-											"bg-[#1B1F24] border border-white/10",
-											"shadow-[0px_2.842px_14.211px_rgba(0,0,0,0.25)]",
-											"relative overflow-hidden",
-										)}
-									>
-										{/* Header with badge */}
-										<div className="flex items-center justify-between">
-											<p
-												className={cn(
-													dmSans125ClassName(),
-													"font-medium text-[16px] tracking-[-0.16px] text-[#FAFAFA]",
-												)}
-											>
-												Pro plan
-											</p>
-											<span className="bg-[#4BA0FA] text-[#00171A] text-[12px] font-bold tracking-[0.36px] px-1 py-0.5 rounded-[3px]">
-												RECOMMENDED
-											</span>
-										</div>
-										<div className="flex flex-col gap-2">
-											<PlanFeatureRow
-												icon="check"
-												text="3M tokens / month"
-												variant="highlight"
-											/>
-											<PlanFeatureRow
-												icon="check"
-												text="100K search queries"
-												variant="highlight"
-											/>
-											<PlanFeatureRow
-												icon="check"
-												text="10 connections"
-												variant="highlight"
-											/>
-											<PlanFeatureRow
-												icon="check"
-												text="Priority support"
-												variant="highlight"
-											/>
-										</div>
-										{/* Inset highlight */}
-										<div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0.711px_0.711px_0.711px_rgba(255,255,255,0.1)]" />
-									</div>
+									<PlanComparisonCard
+										name="Free"
+										price="$0"
+										period=""
+										description="Try the API with no commitment"
+										credits="$5"
+										features={[
+											"Pay-as-you-go after $5 runs out",
+											"Full search & memory API access",
+											"Email support",
+										]}
+										highlight={false}
+									/>
+									<PlanComparisonCard
+										name="Pro"
+										price="$19"
+										period="/mo"
+										description="For developers building with AI memory"
+										credits="$20"
+										features={[
+											"Auto top-up when balance runs low",
+											"All plugins (Claude Code, Cursor, Hermes…)",
+											"Priority support",
+										]}
+										highlight={true}
+									/>
 								</div>
 							</>
 						)}

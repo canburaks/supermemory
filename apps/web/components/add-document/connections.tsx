@@ -243,13 +243,19 @@ export function ConnectContent({ selectedProject }: ConnectContentProps) {
 	const handleUpgrade = async () => {
 		setIsUpgrading(true)
 		try {
-			await autumn.attach({
+			const result = await autumn.attach({
 				planId: "api_pro",
 				successUrl: window.location.href,
 			})
+			if (result?.paymentUrl) {
+				window.open(result.paymentUrl, "_self")
+				return
+			}
+			autumn.refetch?.()
 		} catch (error) {
 			console.error("Upgrade error:", error)
 			toast.error("Failed to start upgrade process")
+		} finally {
 			setIsUpgrading(false)
 		}
 	}
