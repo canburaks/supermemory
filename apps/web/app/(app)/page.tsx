@@ -78,7 +78,7 @@ const GRADIENT_TOP_WIDTH_MAX = 1440
 function gradientTopPositionForWidth(width: number) {
 	const minW = 320
 	const pctWide = 15
-	const pctNarrow = 70
+	const pctNarrow = 55
 	const w = Math.min(GRADIENT_TOP_WIDTH_MAX, Math.max(minW, width))
 	const t = (w - minW) / (GRADIENT_TOP_WIDTH_MAX - minW)
 	const eased = t * t
@@ -515,11 +515,11 @@ export default function NewPage() {
 	const gradientTopPosition = gradientTopPositionForWidth(viewportWidth)
 
 	const isChatView = viewMode === "chat"
+	const showNovaBackdrop =
+		viewMode === "graph" || viewMode === "list" || viewMode === "dashboard"
+	const isDashboardShell =
+		viewMode === "dashboard" || (viewMode === "graph" && isMobile)
 	const isGraphMode = viewMode === "graph"
-	const isMemoriesDesktop = viewMode === "list" && !isMobile
-	const isHomeDesktop = viewMode === "dashboard" && !isMobile
-	const showNovaBackdrop = isGraphMode || isMemoriesDesktop || isHomeDesktop
-	const isDashboardShell = viewMode === "dashboard"
 
 	return (
 		<HotkeysProvider>
