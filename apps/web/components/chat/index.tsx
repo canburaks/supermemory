@@ -187,6 +187,7 @@ export function ChatSidebar({
 		null,
 	)
 	const messagesContainerRef = useRef<HTMLDivElement>(null)
+	const isScrolledToBottomRef = useRef(true)
 	const sentQueuedMessageRef = useRef<string | null>(null)
 	const { selectedProject } = useProject()
 	const { allProjects } = useContainerTags()
@@ -296,6 +297,7 @@ export function ChatSidebar({
 		const { scrollTop, scrollHeight, clientHeight } = container
 		const distanceFromBottom = scrollHeight - scrollTop - clientHeight
 		const isAtBottom = distanceFromBottom <= 20
+		isScrolledToBottomRef.current = isAtBottom
 		setIsScrolledToBottom(isAtBottom)
 	}, [])
 
@@ -303,6 +305,7 @@ export function ChatSidebar({
 		if (messagesContainerRef.current) {
 			messagesContainerRef.current.scrollTop =
 				messagesContainerRef.current.scrollHeight
+			isScrolledToBottomRef.current = true
 			setIsScrolledToBottom(true)
 		}
 	}, [])
@@ -560,6 +563,46 @@ export function ChatSidebar({
 		// Always check scroll position when messages change
 		checkIfScrolledToBottom()
 	}, [messages, checkIfScrolledToBottom])
+
+	useEffect(() => {
+		const isStreaming = status === "streaming"
+		const lastMessage = messages[messages.length - 1]
+		const isLastMessageFromAssistant = lastMessage?.role === "assistant"
+
+		if (
+			isStreaming &&
+			isLastMessageFromAssistant &&
+			isScrolledToBottomRef.current
+		) {
+			scrollToBottom()
+		}
+	}, [status, messages, scrollToBottom])
+
+	useEffect(() => {
+		const container = messagesContainerRef.current
+		if (!container) return
+
+		const isStreaming = status === "streaming"
+		if (!isStreaming) return
+
+		const mutationObserver = new MutationObserver(() => {
+			if (isScrolledToBottomRef.current) {
+				requestAnimationFrame(() => {
+					scrollToBottom()
+				})
+			}
+		})
+
+		mutationObserver.observe(container, {
+			childList: true,
+			subtree: true,
+			characterData: true,
+		})
+
+		return () => {
+			mutationObserver.disconnect()
+		}
+	}, [status, scrollToBottom])
 
 	// Add scroll event listener to track scroll position
 	useEffect(() => {
