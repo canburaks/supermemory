@@ -204,7 +204,7 @@ interface QuickNoteProps {
 
 interface HighlightsProps {
 	items: HighlightItem[]
-	onChat: (seed: string) => void
+	onChat: (highlightContent: string, userReply: string) => void
 	onShowRelated: (query: string) => void
 	isLoading: boolean
 }
